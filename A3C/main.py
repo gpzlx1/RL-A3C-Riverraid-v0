@@ -22,7 +22,7 @@ class config(object):
         self.seed = 1
         self.num_processes = 4
         self.num_steps = 20
-        self.max_episode_length = 100
+        self.max_episode_length = 1000000
         self.env_name = 'Riverraid-v0'
         self.no_shared = False
 
