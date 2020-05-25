@@ -3,7 +3,6 @@ cloudpickle==1.3.0
 future==0.18.2
 -e git+https://github.com/openai/gym.git@b2727d6fd396f7fe2b19a541ef3a6ea47559cdb3#egg=gym
 numpy==1.18.4
-opencv-python==4.2.0.34
 pyglet==1.5.0
 scipy==1.4.1
 six==1.14.0
