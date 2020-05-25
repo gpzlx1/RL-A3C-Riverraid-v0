@@ -87,6 +87,7 @@ class PB17111656(RL_alg):
         self.normalize = NormalizedEnv()
 
     def step(self, state):
+        '''
         state = AtariRescale42x42(state,[42,42])
         state = self.normalize.observation(state)
         state = from_numpy(state)#需手动实现
@@ -96,9 +97,12 @@ class PB17111656(RL_alg):
         #不清楚非训练过程需不需要lstm
         prob = F.softmax(logit, dim=-1)
         action = prob.max(1, keepdim=True)[1].numpy()[0,0]
+        '''
+        action = self.ac_space.sample()
         return action
 
     def explore(self, obs):
+        # currently, we only need to implement explore function
         raise NotImplementedError
 
     def test(self):
