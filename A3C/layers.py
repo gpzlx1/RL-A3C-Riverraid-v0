@@ -1,5 +1,6 @@
 import torch 
 import numpy as np
+import torch.nn.functional as F
 
 class Layer(object):
     def forward(self):
@@ -11,7 +12,34 @@ class Layer(object):
     def load_weights(self):
         raise NotImplementedError 
 
+class Conv2d(Layer):
 
+    def __init__(self,in_channels, out_channels, kernel_size,stride=1,
+                 padding=0,bias=True,groups = 1,dilation = 1):
+        self.in_channels = in_channels
+        self.out_channels = out_channels
+        self.kernel_size = (kernel_size,kernel_size)
+        self.stride = (stride,stride)
+        self.padding = (padding,padding)
+        self.groups = groups
+        self.dilation = dilation
+        if bias:
+            self.bias = torch.Tensor(out_channels)
+
+    def init_weight(self,random = True):
+        if random:
+            pass
+        else:
+            self.weight = torch.Tensor(self.in_channels,self.out_channels // self.groups, *self.kernel_size)
+    def load_weight(self,weight):
+        self.weight = weight
+
+    def forward(self,input):
+        return F.conv2d(input, self.weight, self.bias, self.stride,
+                        self.padding, self.dilation, self.groups)
+
+    def backward(self):
+        pass
 
 class LSTMCell(Layer):
 
@@ -64,3 +92,8 @@ if __name__ == "__main__":
     print(LSTM.bias_hh)
     LSTM.init_weight()
     print(LSTM.weight_ih)
+
+    conv_1 = Conv2d(1, 1, 3, stride=2, padding=1)
+    conv_1.init_weight(False)
+    print(conv_1.weight)
+
