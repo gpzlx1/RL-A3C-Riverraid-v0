@@ -69,17 +69,7 @@ class LSTMCell(Layer):
         self.hy = None
         self.hx = None
         
-        #梯度
-        self.grad_pre_inputs = None
-        self.grad_ingate = None
-        self.grad_forgetgate = None
-        self.grad_cellgate = None
-        self.grad_outgate = None
-        self.grad_cy = None
-        self.grad_cx = None
-        self.grad_hy = None
-        self.grad_hx = None
-        
+        #梯度        
         self.grad_weight_ih = None
         self.grad_weight_hh = None
         self.grad_bias_ih = None
@@ -213,11 +203,11 @@ if __name__ == "__main__":
     print(sum(sum(abs(test.lstm.weight_ih.grad - LSTM.grad_weight_ih))))
     print(sum(abs(test.lstm.bias_ih.grad - LSTM.grad_bias_ih)))
     print(sum(abs(test.lstm.bias_hh.grad - LSTM.grad_bias_hh)))
+    print(sum(sum(abs(hx.grad - bottom_grad_h))))
+    print(sum(sum(abs(cx.grad - bottom_grad_c))))
     print(test.lstm.bias_hh.grad.shape, LSTM.grad_bias_hh.shape)
     print(test.lstm.weight_hh.grad.shape, LSTM.grad_weight_hh.shape)
-    print(sum(sum(abs(hx.grad - bottom_grad_h))))
     print(hx.grad.shape, bottom_grad_h.shape)
-    print(sum(sum(abs(cx.grad - bottom_grad_c))))
     print(cx.grad.shape, bottom_grad_c.shape)
 
 
