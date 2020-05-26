@@ -57,6 +57,7 @@ class LSTMCell(Layer):
         else:
             self.bias_ih = None
             self.bias_hh = None
+
         
     def init_weight(self, random=True, loc=0.0, scale=1):
         if random:
@@ -80,20 +81,36 @@ class LSTMCell(Layer):
     def load_weights(self):
         pass
 
-    def forward(self):
-        pass
+    def forward(self, input, hidden):
+        # https://medium.com/@andre.holzner/lstm-cells-in-pytorch-fab924a78b1c
+        hx, cx = hidden
+        gates = F.linear(input, self.weight_ih, self.bias_ih) + F.linear(hx, self.weight_hh, self.bias_hh)
+        
+        ingate, forgetgate, cellgate, outgate = gates.chunk(4, 1)
+
+        ingate = F.sigmoid(ingate) # i_t 第二个
+        forgetgate = F.sigmoid(forgetgate) # f_t 第一个
+        cellgate = F.tanh(cellgate) # g_t 第三个
+        outgate = F.sigmoid(outgate) # o_t 第四个
+
+        cy = (forgetgate * cx) + (ingate * cellgate)
+        hy = outgate * F.tanh(cy)
+
+        return hy, cy
+        
 
     def backward(self):
         pass
 
+from envs import create_atari_env
+
 if __name__ == "__main__":
     LSTM = LSTMCell(32 * 3 * 3, 256)
-    print(LSTM.weight_ih)
-    print(LSTM.bias_hh)
-    LSTM.init_weight()
-    print(LSTM.weight_ih)
+    cx = torch.zeros(1, 256)
+    hx = torch.zeros(1, 256)
+    env = create_atari_env("Riverraid-v0")
+    state = env.reset()
+    state = torch.Tensor(state)
+    print(state.shape)
 
-    conv_1 = Conv2d(1, 1, 3, stride=2, padding=1)
-    conv_1.init_weight(False)
-    print(conv_1.weight)
 
