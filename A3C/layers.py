@@ -22,24 +22,32 @@ class Conv2d(Layer):
         self.stride = (stride,stride)
         self.padding = (padding,padding)
         self.groups = groups
-        self.dilation = dilation
+        self.dilation = (dilation,dilation)
         if bias:
             self.bias = torch.Tensor(out_channels)
+        else:
+            self.bias = torch.zeros(out_channels)
 
     def init_weight(self,random = True):
         if random:
             pass
         else:
-            self.weight = torch.Tensor(self.in_channels,self.out_channels // self.groups, *self.kernel_size)
+            self.weight = torch.Tensor(self.out_channels,self.in_channels // self.groups, *self.kernel_size)
+
     def load_weight(self,weight):
         self.weight = weight
 
     def forward(self,input):
+        self.input = input
         return F.conv2d(input, self.weight, self.bias, self.stride,
                         self.padding, self.dilation, self.groups)
 
-    def backward(self):
-        pass
+    def backward(self,top_grad):
+        #only for in_channel = 1
+        top_grad = top_grad.squeeze(0).unsqueeze(1)
+        conv_for_back = Conv2d(self.in_channels,self.out_channels,top_grad.shape[2],padding = 1,bias = False,dilation = self.stride[0])
+        conv_for_back.load_weight(top_grad)
+        return conv_for_back.forward(self.input).squeeze(0).unsqueeze(1)
 
 class LSTMCell(Layer):
 
@@ -93,7 +101,25 @@ if __name__ == "__main__":
     LSTM.init_weight()
     print(LSTM.weight_ih)
 
-    conv_1 = Conv2d(1, 1, 3, stride=2, padding=1)
-    conv_1.init_weight(False)
-    print(conv_1.weight)
+    input = torch.randn(1,43,43).unsqueeze(0)
+    input.requires_grad = True
+    kernel_size = (3,3)
+    weight = torch.randn(32,1 // 1, *kernel_size)
+
+    conv_1 = Conv2d(1, 32, 3, stride=2, padding=1)
+    conv_1.load_weight(weight)
+
+    Convtest = torch.nn.Conv2d(1,32, 3, stride=2, padding=1)
+    Convtest.weight.data = weight
+    Convtest.bias.data = conv_1.bias
+    
+    #forward_test
+    result = Convtest(input)
+    my_result = conv_1.forward(input)
+
+    #backward_test
+    result.sum().backward()
+    my_back = conv_1.backward(torch.ones(result.shape))
+    print(sum(sum(sum(sum(abs(Convtest.weight.grad-my_back))))))
+    print(Convtest.weight.grad.shape,my_back.shape)
 
