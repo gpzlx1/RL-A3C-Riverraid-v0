@@ -34,7 +34,7 @@ class Conv2d(Layer):
         else:
             self.weight = torch.Tensor(self.out_channels,self.in_channels // self.groups, *self.kernel_size)
 
-    def load_weight(self,weight):
+    def load_weights(self,weight):
         self.weight = weight
 
     def forward(self,input):
@@ -46,7 +46,7 @@ class Conv2d(Layer):
         #only for in_channel = 1
         top_grad = top_grad.squeeze(0).unsqueeze(1)
         conv_for_back = Conv2d(self.in_channels,self.out_channels,top_grad.shape[2],padding = 1,bias = False,dilation = self.stride[0])
-        conv_for_back.load_weight(top_grad)
+        conv_for_back.load_weights(top_grad)
         weight_grad = conv_for_back.forward(self.input).squeeze(0).unsqueeze(1)
         bias_grad = torch.ones(self.out_channels) * top_grad.shape[2] * top_grad.shape[2]
         if (self.input.shape[2]-top_grad.shape[2])%2 == 0:
@@ -55,6 +55,36 @@ class Conv2d(Layer):
             #t = torch.zeros(ret.shape)
             t = weight_grad[:,:,:self.weight.shape[2],:self.weight.shape[2]]
             return t,bias_grad
+
+class Linear(Layer):
+
+    def __init__(self,in_size,out_size,bias = True):
+        self.in_size = in_size
+        self.out_size = out_size
+        if bias:
+            self.bias = torch.Tensor(out_size)
+        else:
+            self.bias = torch.zeros(out_size)
+
+    def init_weight(self,random = False):
+        if random:
+            self.weight = torch.Tensor(self.out_size,self.in_size)
+        else:
+            self.weight = torch.zeros(self.out_size,self.in_size)
+
+    def load_weights(self,weight):
+        self.weight = weight
+
+    def forward(self,input):
+        self.input = input
+        return F.linear(input,self.weight,self.bias)
+
+    def backward(self,top_grad):
+        top_grad = top_grad.squeeze(0).unsqueeze(1)
+        weight_grad = torch.matmul(top_grad,self.input)
+        bias_grad = torch.ones(self.out_size)
+        return weight_grad,bias_grad
+
 
 class LSTMCell(Layer):
 
@@ -108,13 +138,14 @@ if __name__ == "__main__":
     LSTM.init_weight()
     print(LSTM.weight_ih)
 
-    input = torch.randn(1,42,42).unsqueeze(0)
+    #conv_test
+    input = torch.randn(1,43,43).unsqueeze(0)
     input.requires_grad = True
     kernel_size = (3,3)
     weight = torch.randn(32,1 // 1, *kernel_size)
 
     conv_1 = Conv2d(1, 32, 3, stride=2, padding=1)
-    conv_1.load_weight(weight)
+    conv_1.load_weights(weight)
 
     Convtest = torch.nn.Conv2d(1,32, 3, stride=2, padding=1)
     Convtest.weight.data = weight
@@ -131,4 +162,29 @@ if __name__ == "__main__":
     print(Convtest.weight.grad.shape,weight_grad.shape)
     print(sum(abs(Convtest.bias.grad-bias_grad)))
     print(Convtest.bias.grad.shape,bias_grad.shape)
+
+    #linear_test
+    input = torch.randn(1,256)
+    input.requires_grad = True
+    weight = torch.randn(18,256)
+
+    my_linear = Linear(256,18)
+    my_linear.load_weights(weight)
+
+    linear = torch.nn.Linear(256, 18)
+    linear.weight.data = weight
+    linear.bias.data = my_linear.bias
+
+    #forward_test
+    result = linear(input)
+    my_result = my_linear.forward(input)
+    print(sum(result-my_result))
+
+    #backward_test
+    result.sum().backward()
+    weight_grad,bias_grad = my_linear.backward(torch.ones(result.shape))
+    print(sum(sum(weight_grad-linear.weight.grad)))
+    print(weight_grad.shape,linear.weight.grad.shape)
+    print(sum(bias_grad - linear.bias.grad))
+    print(bias_grad.shape,linear.bias.grad.shape)
 
