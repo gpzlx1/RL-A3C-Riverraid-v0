@@ -47,7 +47,14 @@ class Conv2d(Layer):
         top_grad = top_grad.squeeze(0).unsqueeze(1)
         conv_for_back = Conv2d(self.in_channels,self.out_channels,top_grad.shape[2],padding = 1,bias = False,dilation = self.stride[0])
         conv_for_back.load_weight(top_grad)
-        return conv_for_back.forward(self.input).squeeze(0).unsqueeze(1)
+        weight_grad = conv_for_back.forward(self.input).squeeze(0).unsqueeze(1)
+        bias_grad = torch.ones(self.out_channels) * top_grad.shape[2] * top_grad.shape[2]
+        if (self.input.shape[2]-top_grad.shape[2])%2 == 0:
+            return weight_grad,bias_grad
+        else:
+            #t = torch.zeros(ret.shape)
+            t = weight_grad[:,:,:self.weight.shape[2],:self.weight.shape[2]]
+            return t,bias_grad
 
 class LSTMCell(Layer):
 
@@ -101,7 +108,7 @@ if __name__ == "__main__":
     LSTM.init_weight()
     print(LSTM.weight_ih)
 
-    input = torch.randn(1,43,43).unsqueeze(0)
+    input = torch.randn(1,42,42).unsqueeze(0)
     input.requires_grad = True
     kernel_size = (3,3)
     weight = torch.randn(32,1 // 1, *kernel_size)
@@ -112,14 +119,16 @@ if __name__ == "__main__":
     Convtest = torch.nn.Conv2d(1,32, 3, stride=2, padding=1)
     Convtest.weight.data = weight
     Convtest.bias.data = conv_1.bias
-    
+
     #forward_test
     result = Convtest(input)
     my_result = conv_1.forward(input)
 
     #backward_test
     result.sum().backward()
-    my_back = conv_1.backward(torch.ones(result.shape))
-    print(sum(sum(sum(sum(abs(Convtest.weight.grad-my_back))))))
-    print(Convtest.weight.grad.shape,my_back.shape)
+    weight_grad,bias_grad = conv_1.backward(torch.ones(result.shape))
+    print(sum(sum(sum(sum(abs(Convtest.weight.grad-weight_grad))))))
+    print(Convtest.weight.grad.shape,weight_grad.shape)
+    print(sum(abs(Convtest.bias.grad-bias_grad)))
+    print(Convtest.bias.grad.shape,bias_grad.shape)
 
