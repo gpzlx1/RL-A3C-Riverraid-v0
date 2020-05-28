@@ -7,7 +7,7 @@ import layers
 def grad_elu(top_grad):
     # assume for elu, alpha = 1
     zero = torch.zeros(top_grad.shape)
-    bottom_grad = torch.where(top_grad > 0, zero, a)
+    bottom_grad = torch.where(top_grad > 0, zero, top_grad)
     return bottom_grad + 1
 
 
@@ -52,6 +52,7 @@ class AcotrCritic(object):
         x = F.elu(self.conv3.forward(x))
         x = F.elu(self.conv4.forward(x))
         # x.shape = 1, 32, 3, 3
+        print(x.shape)
         x = x.view(-1, 32 * 3 * 3)
         # x.shape = 1, 288
         print(x.shape)
@@ -66,10 +67,12 @@ class AcotrCritic(object):
         
         top_grad_lstm = grad_critic_linear + grad_actor_liner
 
-        top_grad_conv4 = self.lstm.backward(top_grad_lstm, None)
+        top_grad_conv4, _, _ = self.lstm.backward(top_grad_lstm, None)
+        print(top_grad_conv4.shape)
         top_grad_conv4 = top_grad_conv4.view(-1, 32, 3, 3)
-
+        print('after',top_grad_conv4.shape)
         top_grad_conv4 = grad_elu(top_grad_conv4)
+        print('after',top_grad_conv4.shape)
         top_grad_conv3 = self.conv4.backward(top_grad_conv4)
 
         top_grad_conv3 = grad_elu(top_grad_conv3)
@@ -95,10 +98,10 @@ class AcotrCritic(object):
         raise NotImplementedError
 
 
-from envs import create_atari_env
-import model
-if __name__ == "__main__":
 
+if __name__ == "__main__":
+    from envs import create_atari_env
+    import model
     print("-----------------test model forward-------------")
     env = create_atari_env("Riverraid-v0")
     my_model = AcotrCritic(env.observation_space.shape[0], env.action_space)
@@ -219,3 +222,10 @@ if __name__ == "__main__":
     top_grad_logit = torch.ones(logit.shape) * 0.7
     top_grad_value = torch.ones(value.shape)
     my_model.backward(top_grad_value, top_grad_logit)
+
+    def eval(value1, value2):
+        if value1.shape != value2.shape:
+            print("error")
+            return 
+        
+        print(sum(sum(sum(abs(value1 - value2)))))
