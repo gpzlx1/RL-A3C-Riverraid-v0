@@ -27,6 +27,10 @@ class Conv2d(Layer):
             self.bias = torch.zeros(out_channels)
         else:
             self.bias = None
+        
+        #grad
+        self.grad_bias = None
+        self.grad_weight = None
 
     def init_weight(self,random = True, loc=0.0, scale=1):
         if random:
@@ -80,6 +84,10 @@ class Linear(Layer):
             self.bias = torch.zeros(out_size)
         else:
             self.bias = None
+
+        #grad
+        self.grad_bias = None
+        self.grad_weight = None
 
     def init_weight(self,random = True, loc=0.0, scale=1):
         if random:
