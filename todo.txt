@@ -3,8 +3,8 @@ G: need G to finish
 L: need L to finish
 TD: to do
 
-1. LSTM, Conv2d, Linear: forward and backward (F, 05/27)
-2. model: forward and backward (F, 05/28)
+1. LSTM, Conv2d, Linear: forward and backward (G, L, F, 05/27)
+2. model: forward and backward (G, F, 05/28)
 3. loss: backward (L, 05/29)
 4. optimize: SharedAdam (TD)
 5. multiprocess (TD)
