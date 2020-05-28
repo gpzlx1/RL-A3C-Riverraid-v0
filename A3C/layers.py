@@ -30,7 +30,7 @@ class Conv2d(Layer):
 
     def init_weight(self,random = True):
         if random:
-            pass
+            self.weight = torch.Tensor(np.random.normal(loc=0.0, scale=1, size=(self.out_channels,self.in_channels // self.groups, *self.kernel_size)))
         else:
             self.weight = torch.Tensor(self.out_channels,self.in_channels // self.groups, *self.kernel_size)
 
@@ -66,9 +66,9 @@ class Linear(Layer):
         else:
             self.bias = torch.zeros(out_size)
 
-    def init_weight(self,random = False):
+    def init_weight(self,random = True):
         if random:
-            self.weight = torch.Tensor(self.out_size,self.in_size)
+            self.weight = torch.Tensor(np.random.normal(loc=0.0, scale=1, size=(self.out_size,self.in_size)))
         else:
             self.weight = torch.zeros(self.out_size,self.in_size)
 
