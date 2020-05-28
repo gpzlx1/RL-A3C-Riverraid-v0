@@ -42,21 +42,21 @@ class Conv2d(Layer):
         return F.conv2d(input, self.weight, self.bias, self.stride,
                         self.padding, self.dilation, self.groups)
 
-    def backward(self,top_grad):
-        #only for in_channel = 1
-        top_grad = top_grad.squeeze(0).unsqueeze(1)
+    def backward(self,top_grad_t):
+        top_grad = top_grad_t.squeeze(0).unsqueeze(1)
         conv_for_weight = Conv2d(self.in_channels,self.out_channels,top_grad.shape[2],padding = self.padding[0],bias = False,dilation = self.stride[0])
         conv_for_weight.load_weights(top_grad)
         weight_grad = conv_for_weight.forward(self.input).squeeze(0).unsqueeze(1)
         self.grad_bias = torch.ones(self.out_channels) * top_grad.shape[2] * top_grad.shape[2]
+        conv_for_back = F.conv_transpose2d(top_grad_t,self.weight,torch.zeros(self.in_channels),self.stride,self.padding,(self.input.shape[2]-top_grad.shape[2])%2,
+                                           self.groups,self.dilation)
         if (self.input.shape[2]-top_grad.shape[2])%2 == 0:
             self.grad_weight = weight_grad
+            return conv_for_back
         else:
             self.grad_weight = weight_grad[:,:,:self.weight.shape[2],:self.weight.shape[2]]
+            return conv_for_back[:,:,:self.input.shape[2],:self.input.shape[2]]
 
-        conv_for_back = torch.zeros(self.input.shape)
-        for i in range(self.in_channels):
-            return
 
 
 class Linear(Layer):
@@ -269,7 +269,7 @@ if __name__ == "__main__":
     print("begin ------------conv---------------")
 
     #conv_test
-    input = torch.randn(1,43,43).unsqueeze(0)
+    input = torch.randn(1,42,42).unsqueeze(0)
     input.requires_grad = True
     kernel_size = (3,3)
     weight = torch.randn(32,1 // 1, *kernel_size)
@@ -288,8 +288,13 @@ if __name__ == "__main__":
     #backward_test
     result.sum().backward()
     bottom_grad = conv_1.backward(torch.ones(result.shape))
+    print(sum(sum(sum(sum(abs(Convtest.weight.grad-conv_1.grad_weight))))))
+    print(Convtest.weight.grad.shape,conv_1.grad_weight.shape)
+    print(sum(abs(Convtest.bias.grad-conv_1.grad_bias)))
+    print(Convtest.bias.grad.shape,conv_1.grad_bias.shape)
 
-
+    print(sum(sum(sum(sum(abs(bottom_grad - input.grad))))))
+    print(bottom_grad.shape ,input.grad.shape)
 
     print("begin ------------linear---------------")
     #linear_test
@@ -312,7 +317,11 @@ if __name__ == "__main__":
     #backward_test
     result.sum().backward()
     bottom_grad = my_linear.backward(torch.ones(result.shape))
+
+    print(sum(sum(my_linear.grad_weight-linear.weight.grad)))
+    print(my_linear.grad_weight.shape,linear.weight.grad.shape)
+    print(sum(my_linear.grad_bias - linear.bias.grad))
+    print(my_linear.grad_bias.shape,linear.bias.grad.shape)
+
     print(sum(sum(abs(bottom_grad-input.grad))))
-
-
-
+    print(bottom_grad.shape, input.grad.shape)
