@@ -66,6 +66,8 @@ class AcotrCritic(object):
         
         top_grad_lstm = grad_critic_linear + grad_actor_liner
 
+        print(top_grad_lstm)
+
         top_grad_conv4, _, _ = self.lstm.backward(top_grad_lstm, None)
 
         top_grad_conv4 = top_grad_conv4.view(-1, 32, 3, 3)
@@ -102,37 +104,59 @@ def eval(value1, value2):
         print("error")
         return 
     
-    print(torch.max(torch.abs((value1 - value2) / value2)))
+    print(torch.max(torch.abs((value1 - value2))))
 
-
+'''
 if __name__ == "__main__":
-    inputs = torch.ones(1,128) * 2
+    inputs = torch.ones((1,288)) * 2
     inputs.requires_grad = True
-    linear1 = torch.nn.Linear(128,1)
-    linear2 = torch.nn.Linear(128,18)
-    value = linear1(inputs)
-    logit = linear2(inputs)
+    cx = torch.zeros((1, 256))
+    hx = torch.zeros((1, 256))
+
+    linear1 = torch.nn.Linear(256,1)
+    linear2 = torch.nn.Linear(256,18)
+    lstm = torch.nn.LSTMCell(32 * 3 * 3, 256)
+    x1, _ = lstm(inputs, (hx,cx))
+    value = linear1(x1)
+    logit = linear2(x1)
     loss = value + logit.sum()
     loss.backward()
-    #print(linear1.weight)
-    #print(inputs.grad)
 
-    my_linear1 = layers.Linear(128,1)
+    my_lstm = layers.LSTMCell(32 * 3 * 3, 256)
+    my_lstm.weight_ih = lstm.weight_ih.data
+    my_lstm.weight_hh = lstm.weight_hh.data
+    my_lstm.bias_hh = lstm.bias_hh.data
+    my_lstm.bias_ih = lstm.bias_ih.data
+
+    my_linear1 = layers.Linear(256,1)
     my_linear1.weight = linear1.weight.data
     my_linear1.bias = linear1.bias.data
-    my_linear2 = layers.Linear(128,18)
+    my_linear2 = layers.Linear(256,18)
     my_linear2.weight = linear2.weight.data
     my_linear2.bias = linear2.bias.data
 
-    my_value = my_linear1.forward(inputs)
-    my_logit = my_linear2.forward(inputs)
-    my_loss = my_value + (my_logit * 0.5).sum()
+
+    x2, _ = my_lstm.forward(inputs, (hx,cx))
+    my_value = my_linear1.forward(x2)
+    my_logit = my_linear2.forward(x2)
+    my_loss = my_value + (my_logit).sum()
 
     print(loss, my_loss)
 
     a = my_linear1.backward(torch.ones(my_value.shape))
-    b = my_linear2.backward(torch.ones(my_logit.shape) * 0.7)
-    eval(a+b, inputs.grad)
+    b = my_linear2.backward(torch.ones(my_logit.shape))
+    my_inputs_grad, _, _ = my_lstm.backward(a+b, None)
+    eval(my_linear1.grad_weight, linear1.weight.grad)
+    eval(my_linear1.grad_bias, linear1.bias.grad)
+    eval(my_linear2.grad_weight, linear2.weight.grad)
+    eval(my_linear2.grad_bias, linear2.bias.grad)
+    
+    eval(my_lstm.grad_bias_hh, lstm.bias_hh.grad)
+    eval(my_lstm.grad_bias_ih, lstm.bias_ih.grad)
+    eval(my_lstm.grad_weight_hh, lstm.weight_hh.grad)
+    eval(my_lstm.grad_weight_ih, lstm.weight_ih.grad)
+    eval(my_inputs_grad, inputs.grad)
+    
 '''
 if __name__ == "__main__":
     from envs import create_atari_env
@@ -244,36 +268,60 @@ if __name__ == "__main__":
     my_value, my_logit, (my_hx, my_cx) = my_model.forward((state.unsqueeze(0), (hx, cx)))
     value, logit, (hx, cx) = model((state.unsqueeze(0), (hx, cx)))
 
-    print(sum(sum(abs(value - my_value))))
-    print(sum(sum(abs(logit - my_logit))))
-    print(sum(sum(abs(hx - my_hx))))
-    print(sum(sum(abs(cx - my_cx))))
+
+    print("--- output accurancy")
+    eval(my_value, value)
+    eval(logit , my_logit)
+    eval(hx , my_hx)
+    eval(cx , my_cx)
     
     print("---- checkout model backward ----")
 
 
-    loss = value + logit.sum()
+    loss = value + logit.sum() 
     loss.backward()
 
     top_grad_logit = torch.ones(logit.shape) 
-    top_grad_value = torch.ones(value.shape)
+    top_grad_value = torch.ones(value.shape) 
     bottom_grad = my_model.backward(top_grad_value, top_grad_logit)
 
-    def eval(value1, value2):
-        if value1.shape != value2.shape:
-            print("error")
-            return 
-        
-        print(torch.max(torch.abs((value1 - value2) / value2)))
-
     
+    print("--- linear")
     eval(my_model.actor_linear.grad_weight, model.actor_linear.weight.grad)
     eval(my_model.actor_linear.grad_bias, model.actor_linear.bias.grad)
     eval(my_model.critic_linear.grad_weight, model.critic_linear.weight.grad)
     eval(my_model.critic_linear.grad_bias, model.critic_linear.bias.grad)
 
+    print("--- lstm")
     eval(my_model.lstm.grad_bias_hh, model.lstm.bias_hh.grad)
     eval(my_model.lstm.grad_bias_ih, model.lstm.bias_ih.grad)
     eval(my_model.lstm.grad_weight_ih, model.lstm.weight_ih.grad)
     eval(my_model.lstm.grad_weight_hh, model.lstm.weight_hh.grad)
-'''
+
+
+    print("---- test")
+
+    a = my_model.critic_linear.backward(torch.ones(value.shape))
+    b = my_model.actor_linear.backward(torch.ones(logit.shape))
+    my_inputs_grad, _, _ = my_model.lstm.backward(a+b, None)
+    eval(my_linear1.grad_weight, linear1.weight.grad)
+    eval(my_linear1.grad_bias, linear1.bias.grad)
+    eval(my_linear2.grad_weight, linear2.weight.grad)
+    eval(my_linear2.grad_bias, linear2.bias.grad)
+    
+    eval(my_lstm.grad_bias_hh, lstm.bias_hh.grad)
+    eval(my_lstm.grad_bias_ih, lstm.bias_ih.grad)
+    eval(my_lstm.grad_weight_hh, lstm.weight_hh.grad)
+    eval(my_lstm.grad_weight_ih, lstm.weight_ih.grad)
+
+    print("--- linear")
+    eval(my_model.actor_linear.grad_weight, model.actor_linear.weight.grad)
+    eval(my_model.actor_linear.grad_bias, model.actor_linear.bias.grad)
+    eval(my_model.critic_linear.grad_weight, model.critic_linear.weight.grad)
+    eval(my_model.critic_linear.grad_bias, model.critic_linear.bias.grad)
+
+    print("--- lstm")
+    eval(my_model.lstm.grad_bias_hh, model.lstm.bias_hh.grad)
+    eval(my_model.lstm.grad_bias_ih, model.lstm.bias_ih.grad)
+    eval(my_model.lstm.grad_weight_ih, model.lstm.weight_ih.grad)
+    eval(my_model.lstm.grad_weight_hh, model.lstm.weight_hh.grad)
