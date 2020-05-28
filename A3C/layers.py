@@ -61,7 +61,7 @@ class Conv2d(Layer):
         conv_for_weight = Conv2d(self.in_channels,self.out_channels,top_grad.shape[2],padding = self.padding[0],bias = False,dilation = self.stride[0])
         conv_for_weight.load_weights(top_grad)
         weight_grad = conv_for_weight.forward(self.input.transpose(0,1)).transpose(0,1)
-        self.grad_bias = torch.ones(self.out_channels) * top_grad.shape[2] * top_grad.shape[2]
+        self.grad_bias = torch.sum(torch.sum(torch.sum(top_grad,3),2),1)
         conv_for_back = F.conv_transpose2d(top_grad_t,self.weight,torch.zeros(self.in_channels),self.stride,self.padding,(self.input.shape[2]-top_grad.shape[2])%2,
                                            self.groups,self.dilation)
         if (self.input.shape[2]-top_grad.shape[2])%2 == 0:
@@ -115,7 +115,7 @@ class Linear(Layer):
     def backward(self,top_grad):
         top_grad_t = top_grad.t()
         self.grad_weight = torch.matmul(top_grad_t,self.input)
-        self.grad_bias = torch.ones(self.out_size)
+        self.grad_bias = top_grad.squeeze(0)
         return torch.matmul(top_grad,self.weight)
 
 
