@@ -154,11 +154,15 @@ class LSTMCell(Layer):
 
         bottom_grad_c = self.forgetgate * grad_c
         
-        param_i, param_f, param_g, param_o = self.weight_hh.chunk(4,0)
-        bottom_grad_h = di_input.matmul(param_i) + df_input.matmul(param_f) +\
-                dg_input.matmul(param_g) + do_input.matmul(param_o)
+        param_hi, param_hf, param_hg, param_ho = self.weight_hh.chunk(4,0)
+        bottom_grad_h = di_input.matmul(param_hi) + df_input.matmul(param_hf) +\
+                dg_input.matmul(param_hg) + do_input.matmul(param_ho)
 
-        return bottom_grad_h, bottom_grad_c
+        param_ii, param_if, param_ig, param_io = self.weight_ih.chunk(4,0)
+        bottom_grad_inputs = di_input.matmul(param_ii) + df_input.matmul(param_if) +\
+                dg_input.matmul(param_ig) + do_input.matmul(param_io)
+
+        return bottom_grad_inputs, bottom_grad_h, bottom_grad_c
 
 class LSTMTest(torch.nn.Module):
     def __init__(self, input_size, hidden_size, bias=True):
@@ -176,7 +180,7 @@ if __name__ == "__main__":
         
     cx = torch.randn((1, 256), requires_grad=True)
     hx = torch.randn((1, 256), requires_grad=True)
-    inputs = torch.randn(1,32*3*3)
+    inputs = torch.randn(1,32*3*3, requires_grad=True)
 
 
     #标准model
@@ -198,7 +202,7 @@ if __name__ == "__main__":
     h2,c2 = LSTM.forward(inputs, (hx,cx))
     #print(h2)
     #print(c2)
-    bottom_grad_h, bottom_grad_c = LSTM.backward(torch.ones(h1.shape),None)
+    bottom_grad_inputs, bottom_grad_h, bottom_grad_c = LSTM.backward(torch.ones(h1.shape),None)
     print(sum(sum(abs(test.lstm.weight_hh.grad - LSTM.grad_weight_hh))))
     print(sum(sum(abs(test.lstm.weight_ih.grad - LSTM.grad_weight_ih))))
     print(sum(abs(test.lstm.bias_ih.grad - LSTM.grad_bias_ih)))
@@ -209,5 +213,7 @@ if __name__ == "__main__":
     print(test.lstm.weight_hh.grad.shape, LSTM.grad_weight_hh.shape)
     print(hx.grad.shape, bottom_grad_h.shape)
     print(cx.grad.shape, bottom_grad_c.shape)
+    print(sum(sum(abs(inputs.grad - bottom_grad_inputs))))
+    print(inputs.grad.shape, bottom_grad_inputs.shape)
 
 
