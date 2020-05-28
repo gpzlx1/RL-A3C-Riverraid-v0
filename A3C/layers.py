@@ -256,6 +256,14 @@ class LSTMTest(torch.nn.Module):
 if __name__ == "__main__":
 
 
+    
+    def eval(value1, value2):
+        if value1.shape != value2.shape:
+            print("error")
+            return 
+        
+        print(torch.max(torch.abs(value1 - value2) / torch.abs(value1)))
+        
     print("begin ------------lstm---------------")
 
     cx = torch.randn((1, 256), requires_grad=True)
@@ -283,17 +291,18 @@ if __name__ == "__main__":
     #print(h2)
     #print(c2)
     bottom_grad_inputs, bottom_grad_h, bottom_grad_c = LSTM.backward(torch.ones(h1.shape),None)
-    print(sum(sum(abs(test.lstm.weight_hh.grad - LSTM.grad_weight_hh))))
-    print(sum(sum(abs(test.lstm.weight_ih.grad - LSTM.grad_weight_ih))))
-    print(sum(abs(test.lstm.bias_ih.grad - LSTM.grad_bias_ih)))
-    print(sum(abs(test.lstm.bias_hh.grad - LSTM.grad_bias_hh)))
-    print(sum(sum(abs(hx.grad - bottom_grad_h))))
-    print(sum(sum(abs(cx.grad - bottom_grad_c))))
+    eval(test.lstm.weight_hh.grad , LSTM.grad_weight_hh)
+    eval(test.lstm.weight_ih.grad , LSTM.grad_weight_ih)
+    eval(test.lstm.bias_ih.grad , LSTM.grad_bias_ih)
+    eval(test.lstm.bias_hh.grad , LSTM.grad_bias_hh)
+    eval(hx.grad , bottom_grad_h)
+    eval(cx.grad , bottom_grad_c)
+    print()
+    eval(inputs.grad , bottom_grad_inputs)
     print(test.lstm.bias_hh.grad.shape, LSTM.grad_bias_hh.shape)
     print(test.lstm.weight_hh.grad.shape, LSTM.grad_weight_hh.shape)
     print(hx.grad.shape, bottom_grad_h.shape)
     print(cx.grad.shape, bottom_grad_c.shape)
-    print(sum(sum(abs(inputs.grad - bottom_grad_inputs))))
     print(inputs.grad.shape, bottom_grad_inputs.shape)
 
     print("begin ------------conv---------------")
