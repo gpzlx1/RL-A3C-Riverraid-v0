@@ -1,4 +1,4 @@
-import torch 
+import torch
 import numpy as np
 import torch.nn.functional as F
 
@@ -7,10 +7,10 @@ class Layer(object):
         raise NotImplementedError
 
     def backward(self):
-        raise NotImplementedError 
+        raise NotImplementedError
 
     def load_weights(self):
-        raise NotImplementedError 
+        raise NotImplementedError
 
 class Conv2d(Layer):
 
@@ -45,16 +45,19 @@ class Conv2d(Layer):
     def backward(self,top_grad):
         #only for in_channel = 1
         top_grad = top_grad.squeeze(0).unsqueeze(1)
-        conv_for_back = Conv2d(self.in_channels,self.out_channels,top_grad.shape[2],padding = 1,bias = False,dilation = self.stride[0])
-        conv_for_back.load_weights(top_grad)
-        weight_grad = conv_for_back.forward(self.input).squeeze(0).unsqueeze(1)
-        bias_grad = torch.ones(self.out_channels) * top_grad.shape[2] * top_grad.shape[2]
+        conv_for_weight = Conv2d(self.in_channels,self.out_channels,top_grad.shape[2],padding = self.padding[0],bias = False,dilation = self.stride[0])
+        conv_for_weight.load_weights(top_grad)
+        weight_grad = conv_for_weight.forward(self.input).squeeze(0).unsqueeze(1)
+        self.grad_bias = torch.ones(self.out_channels) * top_grad.shape[2] * top_grad.shape[2]
         if (self.input.shape[2]-top_grad.shape[2])%2 == 0:
-            return weight_grad,bias_grad
+            self.grad_weight = weight_grad
         else:
-            #t = torch.zeros(ret.shape)
-            t = weight_grad[:,:,:self.weight.shape[2],:self.weight.shape[2]]
-            return t,bias_grad
+            self.grad_weight = weight_grad[:,:,:self.weight.shape[2],:self.weight.shape[2]]
+
+        conv_for_back = torch.zeros(self.input.shape)
+        for i in range(self.in_channels):
+            return
+
 
 class Linear(Layer):
 
@@ -80,10 +83,10 @@ class Linear(Layer):
         return F.linear(input,self.weight,self.bias)
 
     def backward(self,top_grad):
-        top_grad = top_grad.squeeze(0).unsqueeze(1)
-        weight_grad = torch.matmul(top_grad,self.input)
-        bias_grad = torch.ones(self.out_size)
-        return weight_grad,bias_grad
+        top_grad_t = top_grad.squeeze(0).unsqueeze(1)
+        self.grad_weight = torch.matmul(top_grad_t,self.input)
+        self.grad_bias = torch.ones(self.out_size)
+        return torch.matmul(top_grad,self.weight)
 
 
 class LSTMCell(Layer):
@@ -113,13 +116,13 @@ class LSTMCell(Layer):
         self.cx = None
         self.hy = None
         self.hx = None
-        
-        #梯度        
+
+        #梯度
         self.grad_weight_ih = None
         self.grad_weight_hh = None
         self.grad_bias_ih = None
         self.grad_bias_hh = None
-        
+
 
     def init_weight(self, random=True, loc=0.0, scale=1):
         if random:
@@ -131,7 +134,7 @@ class LSTMCell(Layer):
 
     def init_bias(self, random=True, loc=0.0, scale=1):
         if self.bias is not None:
-            return 
+            return
 
         if random:
             self.bias_ih = torch.Tensor(np.random.normal(loc=loc, scale=scale, size=self.bias_ih.shape))
@@ -150,7 +153,7 @@ class LSTMCell(Layer):
         self.cx = cx
         self.pre_inputs = inputs
         gates = F.linear(self.pre_inputs, self.weight_ih, self.bias_ih) + F.linear(self.hx, self.weight_hh, self.bias_hh)
-        
+
         ingate, forgetgate, cellgate, outgate = gates.chunk(4, 1)
 
         self.ingate = torch.sigmoid(ingate) # i_t 第二个
@@ -161,7 +164,7 @@ class LSTMCell(Layer):
         self.cy = (self.forgetgate * self.cx) + (self.ingate * self.cellgate)
         self.hy = self.outgate * torch.tanh(self.cy)
         return self.hy, self.cy
-        
+
 
     def backward(self, top_grad_h, top_grad_c):
         grad_outgate =  torch.tanh(self.cy) * top_grad_h
@@ -178,15 +181,15 @@ class LSTMCell(Layer):
 
         grad_Wif = df_input.t().matmul(self.pre_inputs)
         grad_Whf = df_input.t().matmul(self.hx)
-        grad_bf = df_input  
+        grad_bf = df_input
 
         grad_Wii = di_input.t().matmul(self.pre_inputs)
         grad_Whi = di_input.t().matmul(self.hx)
-        grad_bi =  di_input 
+        grad_bi =  di_input
 
         grad_Wig = dg_input.t().matmul(self.pre_inputs)
         grad_Whg = dg_input.t().matmul(self.hx)
-        grad_bg = dg_input 
+        grad_bg = dg_input
 
         grad_Wio = do_input.t().matmul(self.pre_inputs)
         grad_Who = do_input.t().matmul(self.hx)
@@ -198,7 +201,7 @@ class LSTMCell(Layer):
         self.grad_bias_ih = self.grad_bias_hh
 
         bottom_grad_c = self.forgetgate * grad_c
-        
+
         param_hi, param_hf, param_hg, param_ho = self.weight_hh.chunk(4,0)
         bottom_grad_h = di_input.matmul(param_hi) + df_input.matmul(param_hf) +\
                 dg_input.matmul(param_hg) + do_input.matmul(param_ho)
@@ -221,8 +224,8 @@ class LSTMTest(torch.nn.Module):
 
 
 if __name__ == "__main__":
-    
-    
+
+
     print("begin ------------lstm---------------")
 
     cx = torch.randn((1, 256), requires_grad=True)
@@ -237,7 +240,7 @@ if __name__ == "__main__":
     #print(h1)
     #print(c1)
     h1.sum().backward()
-    
+
 
     LSTM = LSTMCell(32 * 3 * 3, 256)
     LSTM.weight_hh = test.lstm.weight_hh
@@ -284,11 +287,8 @@ if __name__ == "__main__":
 
     #backward_test
     result.sum().backward()
-    weight_grad,bias_grad = conv_1.backward(torch.ones(result.shape))
-    print(sum(sum(sum(sum(abs(Convtest.weight.grad-weight_grad))))))
-    print(Convtest.weight.grad.shape,weight_grad.shape)
-    print(sum(abs(Convtest.bias.grad-bias_grad)))
-    print(Convtest.bias.grad.shape,bias_grad.shape)
+    bottom_grad = conv_1.backward(torch.ones(result.shape))
+
 
 
     print("begin ------------linear---------------")
@@ -311,9 +311,8 @@ if __name__ == "__main__":
 
     #backward_test
     result.sum().backward()
-    weight_grad,bias_grad = my_linear.backward(torch.ones(result.shape))
-    print(sum(sum(weight_grad-linear.weight.grad)))
-    print(weight_grad.shape,linear.weight.grad.shape)
-    print(sum(bias_grad - linear.bias.grad))
-    print(bias_grad.shape,linear.bias.grad.shape)
+    bottom_grad = my_linear.backward(torch.ones(result.shape))
+    print(sum(sum(abs(bottom_grad-input.grad))))
+
+
 
