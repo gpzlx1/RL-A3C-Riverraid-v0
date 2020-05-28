@@ -56,11 +56,11 @@ class Conv2d(Layer):
         return F.conv2d(input, self.weight, self.bias, self.stride,
                         self.padding, self.dilation, self.groups)
 
-    def backward(self,top_grad_t):
-        top_grad = torch.transpose(top_grad_t, 0, 1)
+    def backward(self, top_grad_t):
+        top_grad = top_grad_t.transpose(0,1)
         conv_for_weight = Conv2d(self.in_channels,self.out_channels,top_grad.shape[2],padding = self.padding[0],bias = False,dilation = self.stride[0])
         conv_for_weight.load_weights(top_grad)
-        weight_grad = torch.transpose(conv_for_weight.forward(self.input), 0, 1)
+        weight_grad = conv_for_weight.forward(self.input.transpose(0,1)).transpose(0,1)
         self.grad_bias = torch.ones(self.out_channels) * top_grad.shape[2] * top_grad.shape[2]
         conv_for_back = F.conv_transpose2d(top_grad_t,self.weight,torch.zeros(self.in_channels),self.stride,self.padding,(self.input.shape[2]-top_grad.shape[2])%2,
                                            self.groups,self.dilation)
@@ -273,10 +273,10 @@ if __name__ == "__main__":
 
 
     LSTM = LSTMCell(32 * 3 * 3, 256)
-    LSTM.weight_hh = test.lstm.weight_hh
-    LSTM.weight_ih = test.lstm.weight_ih
-    LSTM.bias_hh = test.lstm.bias_hh
-    LSTM.bias_ih = test.lstm.bias_ih
+    LSTM.weight_hh = test.lstm.weight_hh.data
+    LSTM.weight_ih = test.lstm.weight_ih.data
+    LSTM.bias_hh = test.lstm.bias_hh.data
+    LSTM.bias_ih = test.lstm.bias_ih.data
     print(LSTM.weight_hh.shape)
     print(LSTM.bias_hh.shape)
     h2,c2 = LSTM.forward(inputs, (hx,cx))
@@ -299,17 +299,16 @@ if __name__ == "__main__":
     print("begin ------------conv---------------")
 
     #conv_test
-    input = torch.randn(1,42,42).unsqueeze(0)
+    input = torch.randn(32,6,6).unsqueeze(0)
     input.requires_grad = True
-    kernel_size = (3,3)
-    weight = torch.randn(32,1 // 1, *kernel_size)
 
-    conv_1 = Conv2d(1, 32, 3, stride=2, padding=1)
-    conv_1.load_weights(weight)
 
-    Convtest = torch.nn.Conv2d(1,32, 3, stride=2, padding=1)
-    Convtest.weight.data = weight
-    Convtest.bias.data = conv_1.bias
+    conv_1 = Conv2d(32, 32, 3, stride=2, padding=1)
+   
+
+    Convtest = torch.nn.Conv2d(32,32, 3, stride=2, padding=1)
+    conv_1.weight = Convtest.weight.data
+    conv_1.bias = Convtest.bias.data
 
     #forward_test
     result = Convtest(input)
