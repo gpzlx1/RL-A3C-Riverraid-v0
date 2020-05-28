@@ -4,11 +4,11 @@ import torch.nn.functional as F
 import layers
 
 
-def grad_elu(top_grad):
+def grad_elu(grad_y, x):
     # assume for elu, alpha = 1
-    zero = torch.zeros(top_grad.shape)
-    bottom_grad = torch.where(top_grad > 0, zero, top_grad)
-    return bottom_grad + 1
+    zero = torch.zeros(x.shape)
+    bottom_grad = torch.where(x > 0, zero, x)
+    return (bottom_grad + 1) * grad_y
 
 
 class AcotrCritic(object):
@@ -43,14 +43,28 @@ class AcotrCritic(object):
         self.lstm.init_weight(random=True)
         self.lstm.init_bias(random=False)
         
+        #grad
+        self.x1 = None
+        self.x2 = None
+        self.x3 = None
+        self.x4 = None
+
 
 
     def forward(self, inputs):
         inputs, (hx, cx) = inputs
-        x = F.elu(self.conv1.forward(inputs))
-        x = F.elu(self.conv2.forward(x))
-        x = F.elu(self.conv3.forward(x))
-        x = F.elu(self.conv4.forward(x))
+        self.x1 = self.conv1.forward(inputs)
+        x = F.elu(self.x1)
+
+        self.x2 = self.conv2.forward(x)
+        x = F.elu(self.x2)
+
+        self.x3 = self.conv3.forward(x)
+        x = F.elu(self.x3)
+
+        self.x4 = self.conv4.forward(x)
+        x = F.elu(self.x4)
+
         # x.shape = 1, 32, 3, 3
         x = x.view(-1, 32 * 3 * 3)
         # x.shape = 1, 288
@@ -71,16 +85,16 @@ class AcotrCritic(object):
 
         top_grad_conv4 = top_grad_conv4.view(-1, 32, 3, 3)
 
-        top_grad_conv4 = grad_elu(top_grad_conv4)
+        top_grad_conv4 = grad_elu(top_grad_conv4, self.x4)
         top_grad_conv3 = self.conv4.backward(top_grad_conv4)
 
-        top_grad_conv3 = grad_elu(top_grad_conv3)
+        top_grad_conv3 = grad_elu(top_grad_conv3, self.x3)
         top_grad_conv2 = self.conv3.backward(top_grad_conv3)
 
-        top_grad_conv2 = grad_elu(top_grad_conv2)
+        top_grad_conv2 = grad_elu(top_grad_conv2, self.x2)
         top_grad_conv1 = self.conv2.backward(top_grad_conv2)
 
-        top_grad_conv1 = grad_elu(top_grad_conv1)
+        top_grad_conv1 = grad_elu(top_grad_conv1, self.x1)
         grad_inputs = self.conv1.backward(top_grad_conv1)
         
         return grad_inputs
@@ -103,7 +117,8 @@ def eval(value1, value2):
         print("error")
         return 
     
-    print(torch.max(torch.abs((value1 - value2))))
+    print(torch.max(torch.abs((value1  + 1)/(value2 + 1))))
+    print(torch.min(torch.abs((value1  + 1)/(value2 + 1))))
 
 '''
 if __name__ == "__main__":
@@ -289,7 +304,7 @@ if __name__ == "__main__":
     top_grad_logit = torch.ones(logit.shape) 
     top_grad_value = torch.ones(value.shape) 
 
-    my_model.backward(top_grad_value, top_grad_logit)
+    grad_inputs = my_model.backward(top_grad_value, top_grad_logit)
     #a = my_model.critic_linear.backward(torch.ones(my_value.shape))
     #b = my_model.actor_linear.backward(torch.ones(my_logit.shape))
     #my_inputs_grad, _, _ = my_model.lstm.backward(a+b, None)
@@ -320,6 +335,8 @@ if __name__ == "__main__":
     eval(my_model.conv1.grad_weight, model.conv1.weight.grad)
     eval(my_model.conv1.grad_bias, model.conv1.bias.grad)
 
+    print("--- input")
+    eval(grad_inputs, inputs.grad)
 
     '''
     print("--- test")
