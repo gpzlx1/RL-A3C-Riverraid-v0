@@ -65,8 +65,7 @@ class AcotrCritic(object):
         grad_actor_liner = self.actor_linear.backward(top_grad_logit)
         
         top_grad_lstm = grad_critic_linear + grad_actor_liner
-
-        print(top_grad_lstm)
+        
 
         top_grad_conv4, _, _ = self.lstm.backward(top_grad_lstm, None)
 
@@ -108,18 +107,18 @@ def eval(value1, value2):
 
 '''
 if __name__ == "__main__":
-    inputs = torch.ones((1,288)) * 2
+    inputs = torch.randn((1,288)) 
     inputs.requires_grad = True
-    cx = torch.zeros((1, 256))
-    hx = torch.zeros((1, 256))
+    cx = torch.randn((1, 256))
+    hx = torch.randn((1, 256))
 
     linear1 = torch.nn.Linear(256,1)
-    linear2 = torch.nn.Linear(256,18)
+    linear2 = torch.nn.Linear(256,4)
     lstm = torch.nn.LSTMCell(32 * 3 * 3, 256)
     x1, _ = lstm(inputs, (hx,cx))
     value = linear1(x1)
     logit = linear2(x1)
-    loss = value + logit.sum()
+    loss = value + logit.sum() * 0.5
     loss.backward()
 
     my_lstm = layers.LSTMCell(32 * 3 * 3, 256)
@@ -144,7 +143,7 @@ if __name__ == "__main__":
     print(loss, my_loss)
 
     a = my_linear1.backward(torch.ones(my_value.shape))
-    b = my_linear2.backward(torch.ones(my_logit.shape))
+    b = my_linear2.backward(torch.ones(my_logit.shape) * 0.5 )
     my_inputs_grad, _, _ = my_lstm.backward(a+b, None)
     eval(my_linear1.grad_weight, linear1.weight.grad)
     eval(my_linear1.grad_bias, linear1.bias.grad)
@@ -155,8 +154,7 @@ if __name__ == "__main__":
     eval(my_lstm.grad_bias_ih, lstm.bias_ih.grad)
     eval(my_lstm.grad_weight_hh, lstm.weight_hh.grad)
     eval(my_lstm.grad_weight_ih, lstm.weight_ih.grad)
-    eval(my_inputs_grad, inputs.grad)
-    
+    eval(my_inputs_grad, inputs.grad) 
 '''
 if __name__ == "__main__":
     from envs import create_atari_env
@@ -167,19 +165,21 @@ if __name__ == "__main__":
     model = model.ActorCritic(env.observation_space.shape[0], env.action_space)
     state = env.reset()
     state = torch.Tensor(state)
-    state.requires_grad = True
+    inputs = state.unsqueeze(0)
+    inputs.requires_grad = True
     cx = torch.zeros(1, 256)
     hx = torch.zeros(1, 256)
-    my_value, my_logit, (my_hx, my_cx) = my_model.forward((state.unsqueeze(0), (hx, cx)))
-    value, logit, (hx, cx) = model((state.unsqueeze(0), (hx, cx)))
-    
-    
 
+    my_value, my_logit, (my_hx, my_cx) = my_model.forward((inputs, (hx, cx)))
+    value, logit, (hx, cx) = model((inputs, (hx, cx)))
+    
+    
+    
     
     print("--- check output shape ---")
     my_value, my_logit, (my_hx, my_cx) = my_model.forward((state.unsqueeze(0), (hx, cx)))
     value, logit, (hx, cx) = model((state.unsqueeze(0), (hx, cx)))
-
+    
     print(value.shape, my_value.shape)
     print(logit.shape, my_logit.shape)
     print(hx.shape, my_hx.shape)
@@ -265,8 +265,11 @@ if __name__ == "__main__":
     else:
         print("error")
 
-    my_value, my_logit, (my_hx, my_cx) = my_model.forward((state.unsqueeze(0), (hx, cx)))
-    value, logit, (hx, cx) = model((state.unsqueeze(0), (hx, cx)))
+
+    cx = cx.detach()
+    hx = hx.detach()
+    my_value, my_logit, (my_hx, my_cx) = my_model.forward((inputs, (hx, cx)))
+    value, logit, (hx, cx) = model((inputs, (hx, cx)))
 
 
     print("--- output accurancy")
@@ -275,15 +278,21 @@ if __name__ == "__main__":
     eval(hx , my_hx)
     eval(cx , my_cx)
     
+
+    
     print("---- checkout model backward ----")
 
 
-    loss = value + logit.sum() 
+    loss =  value + logit.sum() 
     loss.backward()
 
     top_grad_logit = torch.ones(logit.shape) 
     top_grad_value = torch.ones(value.shape) 
-    bottom_grad = my_model.backward(top_grad_value, top_grad_logit)
+
+    my_model.backward(top_grad_value, top_grad_logit)
+    #a = my_model.critic_linear.backward(torch.ones(my_value.shape))
+    #b = my_model.actor_linear.backward(torch.ones(my_logit.shape))
+    #my_inputs_grad, _, _ = my_model.lstm.backward(a+b, None)
 
     
     print("--- linear")
@@ -298,30 +307,65 @@ if __name__ == "__main__":
     eval(my_model.lstm.grad_weight_ih, model.lstm.weight_ih.grad)
     eval(my_model.lstm.grad_weight_hh, model.lstm.weight_hh.grad)
 
+    print("--- conv")
+    eval(my_model.conv4.grad_weight, model.conv4.weight.grad)
+    eval(my_model.conv4.grad_bias, model.conv4.bias.grad)
 
-    print("---- test")
+    eval(my_model.conv3.grad_weight, model.conv3.weight.grad)
+    eval(my_model.conv3.grad_bias, model.conv3.bias.grad)
 
-    a = my_model.critic_linear.backward(torch.ones(value.shape))
-    b = my_model.actor_linear.backward(torch.ones(logit.shape))
-    my_inputs_grad, _, _ = my_model.lstm.backward(a+b, None)
-    eval(my_linear1.grad_weight, linear1.weight.grad)
-    eval(my_linear1.grad_bias, linear1.bias.grad)
-    eval(my_linear2.grad_weight, linear2.weight.grad)
-    eval(my_linear2.grad_bias, linear2.bias.grad)
-    
-    eval(my_lstm.grad_bias_hh, lstm.bias_hh.grad)
-    eval(my_lstm.grad_bias_ih, lstm.bias_ih.grad)
-    eval(my_lstm.grad_weight_hh, lstm.weight_hh.grad)
-    eval(my_lstm.grad_weight_ih, lstm.weight_ih.grad)
+    eval(my_model.conv2.grad_weight, model.conv2.weight.grad)
+    eval(my_model.conv2.grad_bias, model.conv2.bias.grad)
 
-    print("--- linear")
-    eval(my_model.actor_linear.grad_weight, model.actor_linear.weight.grad)
-    eval(my_model.actor_linear.grad_bias, model.actor_linear.bias.grad)
-    eval(my_model.critic_linear.grad_weight, model.critic_linear.weight.grad)
-    eval(my_model.critic_linear.grad_bias, model.critic_linear.bias.grad)
+    eval(my_model.conv1.grad_weight, model.conv1.weight.grad)
+    eval(my_model.conv1.grad_bias, model.conv1.bias.grad)
 
-    print("--- lstm")
+
+    '''
+    print("--- test")
+    inputs = torch.randn((1,32,6,6)) 
+    inputs.requires_grad = True
+    cx = torch.randn((1, 256))
+    hx = torch.randn((1, 256))
+
+    conv4_result = F.elu(model.conv4(inputs))
+    conv4_result = conv4_result.view(-1, 288)
+    c,d = model.lstm(conv4_result, (hx,cx))
+
+    my_conv4_result = F.elu(my_model.conv4.forward(inputs))
+    my_conv4_result = my_conv4_result.view(-1,288)
+    e,f = my_model.lstm.forward(my_conv4_result, (hx,cx))
+    eval(c,e)
+    eval(d,f)
+
+    x1 = c
+    x2 = e
+    value = model.critic_linear(x1)
+    logit = model.actor_linear(x1)
+
+    my_value = my_model.critic_linear.forward(x2)
+    my_logit = my_model.actor_linear.forward(x2)
+
+    eval(value, my_value)
+    eval(logit, my_logit)
+
+    l = (value + logit.sum()).backward()
+    #a = my_model.critic_linear.backward(torch.ones(my_value.shape))
+    #b = my_model.actor_linear.backward(torch.ones(my_logit.shape))
+    #bottom_lstm_grad, _, _ = my_model.lstm.backward(a+b, None)
+
+    my_model.backward(torch.ones(my_value.shape), torch.ones(my_logit.shape))
+
     eval(my_model.lstm.grad_bias_hh, model.lstm.bias_hh.grad)
     eval(my_model.lstm.grad_bias_ih, model.lstm.bias_ih.grad)
-    eval(my_model.lstm.grad_weight_ih, model.lstm.weight_ih.grad)
     eval(my_model.lstm.grad_weight_hh, model.lstm.weight_hh.grad)
+    eval(my_model.lstm.grad_weight_ih, model.lstm.weight_ih.grad)
+
+    bottom_lstm_grad = grad_elu(bottom_lstm_grad.view(-1, 32, 3, 3))
+    bottom_lstm_grad = bottom_lstm_grad
+    my_inputs_grad = my_model.conv4.backward(bottom_lstm_grad)
+    eval(my_inputs_grad, inputs.grad)
+    '''
+
+
+
