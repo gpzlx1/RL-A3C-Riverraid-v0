@@ -24,15 +24,25 @@ class Conv2d(Layer):
         self.groups = groups
         self.dilation = (dilation,dilation)
         if bias:
-            self.bias = torch.Tensor(out_channels)
-        else:
             self.bias = torch.zeros(out_channels)
+        else:
+            self.bias = None
 
-    def init_weight(self,random = True):
+    def init_weight(self,random = True, loc=0.0, scale=1):
         if random:
-            self.weight = torch.Tensor(np.random.normal(loc=0.0, scale=1, size=(self.out_channels,self.in_channels // self.groups, *self.kernel_size)))
+            self.weight = torch.Tensor(np.random.normal(loc=loc, scale=scale, size=(self.out_channels,self.in_channels // self.groups, *self.kernel_size)))
         else:
             self.weight = torch.Tensor(self.out_channels,self.in_channels // self.groups, *self.kernel_size)
+
+
+    def init_bias(self, random = True, loc=0.0, scale=1):
+        if self.bias is None:
+            return 
+
+        if random:
+            self.bias = torch.Tensor(np.random.normal(loc=loc, scale=scale, size=self.out_channels))
+        else:
+            self.bias = torch.zeros(self.out_channels)
 
     def load_weights(self,weight):
         self.weight = weight
@@ -56,21 +66,33 @@ class Conv2d(Layer):
             t = weight_grad[:,:,:self.weight.shape[2],:self.weight.shape[2]]
             return t,bias_grad
 
+
+
 class Linear(Layer):
 
     def __init__(self,in_size,out_size,bias = True):
         self.in_size = in_size
         self.out_size = out_size
         if bias:
-            self.bias = torch.Tensor(out_size)
-        else:
             self.bias = torch.zeros(out_size)
+        else:
+            self.bias = None
 
-    def init_weight(self,random = True):
+    def init_weight(self,random = True, loc=0.0, scale=1):
         if random:
-            self.weight = torch.Tensor(np.random.normal(loc=0.0, scale=1, size=(self.out_size,self.in_size)))
+            self.weight = torch.Tensor(np.random.normal(loc=loc, scale=scale, size=(self.out_size,self.in_size)))
         else:
             self.weight = torch.zeros(self.out_size,self.in_size)
+
+    
+    def init_bias(self, random = True, loc=0.0, scale=1):
+        if self.bias is None:
+            return 
+
+        if random:
+            self.bias = torch.Tensor(np.random.normal(loc=loc, scale=scale, size=self.out_size))
+        else:
+            self.bias = torch.zeros(self.out_size)
 
     def load_weights(self,weight):
         self.weight = weight
@@ -123,14 +145,14 @@ class LSTMCell(Layer):
 
     def init_weight(self, random=True, loc=0.0, scale=1):
         if random:
-            self.weight_ih = torch.Tensor(np.random.normal(loc=0.0, scale=1, size=self.weight_ih.shape))
-            self.weight_hh = torch.Tensor(np.random.normal(loc=0.0, scale=1, size=self.weight_hh.shape))
+            self.weight_ih = torch.Tensor(np.random.normal(loc=loc, scale=scale, size=self.weight_ih.shape))
+            self.weight_hh = torch.Tensor(np.random.normal(loc=loc, scale=scale, size=self.weight_hh.shape))
         else:
             self.weight_ih = torch.zeros(4 * hidden_size, input_size)
             self.weight_hh = torch.zeros(4 * hidden_size, hidden_size)
 
     def init_bias(self, random=True, loc=0.0, scale=1):
-        if self.bias is not None:
+        if self.bias is False:
             return 
 
         if random:
