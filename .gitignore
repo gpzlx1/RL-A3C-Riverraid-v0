@@ -1,3 +1,4 @@
 __pycache__
 ./A3C/__pycache__
 new_torch/*
+venv/*
