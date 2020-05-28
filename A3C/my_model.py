@@ -52,10 +52,9 @@ class AcotrCritic(object):
         x = F.elu(self.conv3.forward(x))
         x = F.elu(self.conv4.forward(x))
         # x.shape = 1, 32, 3, 3
-        print(x.shape)
         x = x.view(-1, 32 * 3 * 3)
         # x.shape = 1, 288
-        print(x.shape)
+
         hx, cx = self.lstm.forward(x, (hx,cx))
         x = hx
 
@@ -68,11 +67,10 @@ class AcotrCritic(object):
         top_grad_lstm = grad_critic_linear + grad_actor_liner
 
         top_grad_conv4, _, _ = self.lstm.backward(top_grad_lstm, None)
-        print(top_grad_conv4.shape)
+
         top_grad_conv4 = top_grad_conv4.view(-1, 32, 3, 3)
-        print('after',top_grad_conv4.shape)
+
         top_grad_conv4 = grad_elu(top_grad_conv4)
-        print('after',top_grad_conv4.shape)
         top_grad_conv3 = self.conv4.backward(top_grad_conv4)
 
         top_grad_conv3 = grad_elu(top_grad_conv3)
@@ -99,6 +97,43 @@ class AcotrCritic(object):
 
 
 
+def eval(value1, value2):
+    if value1.shape != value2.shape:
+        print("error")
+        return 
+    
+    print(torch.max(torch.abs((value1 - value2) / value2)))
+
+
+if __name__ == "__main__":
+    inputs = torch.ones(1,128) * 2
+    inputs.requires_grad = True
+    linear1 = torch.nn.Linear(128,1)
+    linear2 = torch.nn.Linear(128,18)
+    value = linear1(inputs)
+    logit = linear2(inputs)
+    loss = value + logit.sum()
+    loss.backward()
+    #print(linear1.weight)
+    #print(inputs.grad)
+
+    my_linear1 = layers.Linear(128,1)
+    my_linear1.weight = linear1.weight.data
+    my_linear1.bias = linear1.bias.data
+    my_linear2 = layers.Linear(128,18)
+    my_linear2.weight = linear2.weight.data
+    my_linear2.bias = linear2.bias.data
+
+    my_value = my_linear1.forward(inputs)
+    my_logit = my_linear2.forward(inputs)
+    my_loss = my_value + (my_logit * 0.5).sum()
+
+    print(loss, my_loss)
+
+    a = my_linear1.backward(torch.ones(my_value.shape))
+    b = my_linear2.backward(torch.ones(my_logit.shape) * 0.7)
+    eval(a+b, inputs.grad)
+'''
 if __name__ == "__main__":
     from envs import create_atari_env
     import model
@@ -108,6 +143,7 @@ if __name__ == "__main__":
     model = model.ActorCritic(env.observation_space.shape[0], env.action_space)
     state = env.reset()
     state = torch.Tensor(state)
+    state.requires_grad = True
     cx = torch.zeros(1, 256)
     hx = torch.zeros(1, 256)
     my_value, my_logit, (my_hx, my_cx) = my_model.forward((state.unsqueeze(0), (hx, cx)))
@@ -115,7 +151,7 @@ if __name__ == "__main__":
     
     
 
-    '''
+    
     print("--- check output shape ---")
     my_value, my_logit, (my_hx, my_cx) = my_model.forward((state.unsqueeze(0), (hx, cx)))
     value, logit, (hx, cx) = model((state.unsqueeze(0), (hx, cx)))
@@ -124,91 +160,91 @@ if __name__ == "__main__":
     print(logit.shape, my_logit.shape)
     print(hx.shape, my_hx.shape)
     print(cx.shape, my_cx.shape)
-    '''
+    
     print("--- check output accuracy ---")
 
     print("-- conv --")
     if my_model.conv1.weight.shape == model.conv1.weight.shape:
-        my_model.conv1.weight = model.conv1.weight
+        my_model.conv1.weight = model.conv1.weight.data
     else:
         print("error")
 
     if my_model.conv2.weight.shape == model.conv2.weight.shape:
-            my_model.conv2.weight = model.conv2.weight
+            my_model.conv2.weight = model.conv2.weight.data
     else:
         print("error")
 
     if my_model.conv3.weight.shape == model.conv3.weight.shape:
-            my_model.conv3.weight = model.conv3.weight
+            my_model.conv3.weight = model.conv3.weight.data
     else:
         print("error")
     
     if my_model.conv4.weight.shape == model.conv4.weight.shape:
-            my_model.conv4.weight = model.conv4.weight
+            my_model.conv4.weight = model.conv4.weight.data
     else:
         print("error")
 
 
 
     if my_model.conv1.bias.shape == model.conv1.bias.shape:
-            my_model.conv1.bias = model.conv1.bias
+            my_model.conv1.bias = model.conv1.bias.data
     else:
         print("error")
 
     if my_model.conv2.bias.shape == model.conv2.bias.shape:
-            my_model.conv2.bias = model.conv2.bias
+            my_model.conv2.bias = model.conv2.bias.data
     else:
         print("error")
         
     if my_model.conv3.bias.shape == model.conv3.bias.shape:
-            my_model.conv3.bias = model.conv3.bias
+            my_model.conv3.bias = model.conv3.bias.data
     else:
         print("error")
 
     if my_model.conv4.bias.shape == model.conv4.bias.shape:
-            my_model.conv4.bias = model.conv4.bias
+            my_model.conv4.bias = model.conv4.bias.data
     else:
         print("error")
 
     print("-- linear --")
 
     if my_model.critic_linear.weight.shape == model.critic_linear.weight.shape:
-        my_model.critic_linear.weight = model.critic_linear.weight
+        my_model.critic_linear.weight = model.critic_linear.weight.data
     else:
         print("error")
 
     if my_model.actor_linear.weight.shape == model.actor_linear.weight.shape:
-        my_model.actor_linear.weight = model.actor_linear.weight
+        my_model.actor_linear.weight = model.actor_linear.weight.data
     else:
         print("error")
 
     if my_model.critic_linear.bias.shape == model.critic_linear.bias.shape:
-        my_model.critic_linear.bias = model.critic_linear.bias
+        my_model.critic_linear.bias = model.critic_linear.bias.data
     else:
         print("error")
 
     if my_model.actor_linear.bias.shape == model.actor_linear.bias.shape:
-        my_model.actor_linear.bias = model.actor_linear.bias
+        my_model.actor_linear.bias = model.actor_linear.bias.data
     else:
         print("error")
     
     print("-- lstm --")
     if my_model.lstm.weight_hh.shape == model.lstm.weight_hh.shape and my_model.lstm.weight_ih.shape == model.lstm.weight_ih.shape:
-        my_model.lstm.weight_hh = model.lstm.weight_hh
-        my_model.lstm.weight_ih = model.lstm.weight_ih
+        my_model.lstm.weight_hh = model.lstm.weight_hh.data
+        my_model.lstm.weight_ih = model.lstm.weight_ih.data
     else:
         print("error")
 
     if my_model.lstm.bias_ih.shape == model.lstm.bias_ih.shape and my_model.lstm.bias_hh.shape == model.lstm.bias_hh.shape:
-        my_model.lstm.bias_ih = model.lstm.bias_ih
-        my_model.lstm.bias_hh = model.lstm.bias_hh
+        my_model.lstm.bias_ih = model.lstm.bias_ih.data
+        my_model.lstm.bias_hh = model.lstm.bias_hh.data
     else:
         print("error")
 
     my_value, my_logit, (my_hx, my_cx) = my_model.forward((state.unsqueeze(0), (hx, cx)))
     value, logit, (hx, cx) = model((state.unsqueeze(0), (hx, cx)))
 
-    print(abs(value - my_value))
+    print(sum(sum(abs(value - my_value))))
     print(sum(sum(abs(logit - my_logit))))
     print(sum(sum(abs(hx - my_hx))))
     print(sum(sum(abs(cx - my_cx))))
@@ -216,16 +252,28 @@ if __name__ == "__main__":
     print("---- checkout model backward ----")
 
 
-    loss = value + 0.7 * logit.sum()
+    loss = value + logit.sum()
     loss.backward()
 
-    top_grad_logit = torch.ones(logit.shape) * 0.7
+    top_grad_logit = torch.ones(logit.shape) 
     top_grad_value = torch.ones(value.shape)
-    my_model.backward(top_grad_value, top_grad_logit)
+    bottom_grad = my_model.backward(top_grad_value, top_grad_logit)
 
     def eval(value1, value2):
         if value1.shape != value2.shape:
             print("error")
             return 
         
-        print(sum(sum(sum(abs(value1 - value2)))))
+        print(torch.max(torch.abs((value1 - value2) / value2)))
+
+    
+    eval(my_model.actor_linear.grad_weight, model.actor_linear.weight.grad)
+    eval(my_model.actor_linear.grad_bias, model.actor_linear.bias.grad)
+    eval(my_model.critic_linear.grad_weight, model.critic_linear.weight.grad)
+    eval(my_model.critic_linear.grad_bias, model.critic_linear.bias.grad)
+
+    eval(my_model.lstm.grad_bias_hh, model.lstm.bias_hh.grad)
+    eval(my_model.lstm.grad_bias_ih, model.lstm.bias_ih.grad)
+    eval(my_model.lstm.grad_weight_ih, model.lstm.weight_ih.grad)
+    eval(my_model.lstm.grad_weight_hh, model.lstm.weight_hh.grad)
+'''
