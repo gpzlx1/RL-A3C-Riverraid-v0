@@ -137,21 +137,21 @@ class LSTMCell(Layer):
             self.bias_hh = None
 
         #中间变量
-        self.pre_inputs = None
-        self.ingate = None
-        self.forgetgate = None
-        self.cellgate = None
-        self.outgate = None
-        self.cy = None
-        self.cx = None
-        self.hy = None
-        self.hx = None
+        self.pre_inputs = []
+        self.ingate = []
+        self.forgetgate = []
+        self.cellgate = []
+        self.outgate = []
+        self.cy = []
+        self.cx = []
+        self.hy = []
+        self.hx = []
 
         #梯度
-        self.grad_weight_ih = None
-        self.grad_weight_hh = None
-        self.grad_bias_ih = None
-        self.grad_bias_hh = None
+        self.grad_weight_ih = []
+        self.grad_weight_hh = []
+        self.grad_bias_ih = []
+        self.grad_bias_hh = []
 
 
     def init_weight(self, random=True, loc=0.0, scale=1):
@@ -179,68 +179,101 @@ class LSTMCell(Layer):
     def forward(self, inputs, hidden):
         # https://medium.com/@andre.holzner/lstm-cells-in-pytorch-fab924a78b1c
         hx, cx = hidden
-        self.hx = hx
-        self.cx = cx
-        self.pre_inputs = inputs
-        gates = F.linear(self.pre_inputs, self.weight_ih, self.bias_ih) + F.linear(self.hx, self.weight_hh, self.bias_hh)
+
+        self.hx.append(hx)
+        self.cx.append(cx)
+        self.pre_inputs.append(inputs)
+
+        gates = F.linear(inputs, self.weight_ih, self.bias_ih) + F.linear(hx, self.weight_hh, self.bias_hh)
 
         ingate, forgetgate, cellgate, outgate = gates.chunk(4, 1)
 
-        self.ingate = torch.sigmoid(ingate) # i_t 第二个
-        self.forgetgate = torch.sigmoid(forgetgate) # f_t 第一个
-        self.cellgate = torch.tanh(cellgate) # g_t 第三个
-        self.outgate = torch.sigmoid(outgate) # o_t 第四个
+        ingate = torch.sigmoid(ingate) # i_t 第二个
+        forgetgate = torch.sigmoid(forgetgate) # f_t 第一个
+        cellgate = torch.tanh(cellgate) # g_t 第三个
+        outgate = torch.sigmoid(outgate) # o_t 第四个
 
-        self.cy = (self.forgetgate * self.cx) + (self.ingate * self.cellgate)
-        self.hy = self.outgate * torch.tanh(self.cy)
-        return self.hy, self.cy
+
+        self.ingate.append(ingate)
+        self.forgetgate.append(forgetgate)
+        self.cellgate.append(cellgate)
+        self.outgate.append(outgate)
+
+        cy = (forgetgate * cx) + (ingate * cellgate)
+        hy = outgate * torch.tanh(cy)
+
+        self.cy.append(cy)
+        self.hy.append(hy)
+        return hy, cy
 
 
     def backward(self, top_grad_h, top_grad_c):
-        grad_outgate =  torch.tanh(self.cy) * top_grad_h
-        grad_c = (1 - (torch.tanh(self.cy))**2) * self.outgate * top_grad_h
+        bottom_grad_inputs = []
+        bottom_grad_h = []
+        bottom_grad_c = []
+        for i in range(len(top_grad_h)):
+            grad_outgate =  torch.tanh(self.cy[i]) * top_grad_h[i]
+            grad_c = (1 - (torch.tanh(self.cy[i]))**2) * self.outgate[i] * top_grad_h[i]
 
-        grad_forgetgate = self.cx * grad_c
-        grad_ingate = self.cellgate * grad_c
-        grad_cellgate = self.ingate * grad_c
+            grad_forgetgate = self.cx[i] * grad_c
+            grad_ingate = self.cellgate[i] * grad_c
+            grad_cellgate = self.ingate[i] * grad_c
 
-        df_input = self.forgetgate * (1 - self.forgetgate) * grad_forgetgate
-        di_input = self.ingate  * (1 - self.ingate) * grad_ingate
-        dg_input = (1 - (self.cellgate)**2) * grad_cellgate
-        do_input = self.outgate  * (1 - self.outgate) * grad_outgate
+            df_input = self.forgetgate[i] * (1 - self.forgetgate[i]) * grad_forgetgate
+            di_input = self.ingate[i]  * (1 - self.ingate[i]) * grad_ingate
+            dg_input = (1 - (self.cellgate[i])**2) * grad_cellgate
+            do_input = self.outgate[i]  * (1 - self.outgate[i]) * grad_outgate
 
-        grad_Wif = df_input.t().matmul(self.pre_inputs)
-        grad_Whf = df_input.t().matmul(self.hx)
-        grad_bf = df_input
+            grad_Wif = df_input.t().matmul(self.pre_inputs[i])
+            grad_Whf = df_input.t().matmul(self.hx[i])
+            grad_bf = df_input
 
-        grad_Wii = di_input.t().matmul(self.pre_inputs)
-        grad_Whi = di_input.t().matmul(self.hx)
-        grad_bi =  di_input
+            grad_Wii = di_input.t().matmul(self.pre_inputs[i])
+            grad_Whi = di_input.t().matmul(self.hx[i])
+            grad_bi =  di_input
 
-        grad_Wig = dg_input.t().matmul(self.pre_inputs)
-        grad_Whg = dg_input.t().matmul(self.hx)
-        grad_bg = dg_input
+            grad_Wig = dg_input.t().matmul(self.pre_inputs[i])
+            grad_Whg = dg_input.t().matmul(self.hx[i])
+            grad_bg = dg_input
 
-        grad_Wio = do_input.t().matmul(self.pre_inputs)
-        grad_Who = do_input.t().matmul(self.hx)
-        grad_bo = do_input
+            grad_Wio = do_input.t().matmul(self.pre_inputs[i])
+            grad_Who = do_input.t().matmul(self.hx[i])
+            grad_bo = do_input
 
-        self.grad_weight_ih = torch.cat((grad_Wii, grad_Wif, grad_Wig, grad_Wio))
-        self.grad_weight_hh = torch.cat((grad_Whi, grad_Whf, grad_Whg, grad_Who))
-        self.grad_bias_hh = torch.cat((grad_bi, grad_bf, grad_bg, grad_bo),1).squeeze(0)
-        self.grad_bias_ih = self.grad_bias_hh
+            self.grad_weight_ih.append(torch.cat((grad_Wii, grad_Wif, grad_Wig, grad_Wio)))
+            self.grad_weight_hh.append(torch.cat((grad_Whi, grad_Whf, grad_Whg, grad_Who)))
+            self.grad_bias_hh.append(torch.cat((grad_bi, grad_bf, grad_bg, grad_bo),1).squeeze(0))
+            self.grad_bias_ih = self.grad_bias_hh
 
-        bottom_grad_c = self.forgetgate * grad_c
+            bottom_grad_c.append( self.forgetgate[i] * grad_c )
 
-        param_hi, param_hf, param_hg, param_ho = self.weight_hh.chunk(4,0)
-        bottom_grad_h = di_input.matmul(param_hi) + df_input.matmul(param_hf) +\
-                dg_input.matmul(param_hg) + do_input.matmul(param_ho)
+            param_hi, param_hf, param_hg, param_ho = self.weight_hh.chunk(4,0)
+            bottom_grad_h.append( di_input.matmul(param_hi) + df_input.matmul(param_hf) +\
+                    dg_input.matmul(param_hg) + do_input.matmul(param_ho) )
 
-        param_ii, param_if, param_ig, param_io = self.weight_ih.chunk(4,0)
-        bottom_grad_inputs = di_input.matmul(param_ii) + df_input.matmul(param_if) +\
-                dg_input.matmul(param_ig) + do_input.matmul(param_io)
+            param_ii, param_if, param_ig, param_io = self.weight_ih.chunk(4,0)
+            bottom_grad_inputs.append( di_input.matmul(param_ii) + df_input.matmul(param_if) +\
+                    dg_input.matmul(param_ig) + do_input.matmul(param_io) )
 
         return bottom_grad_inputs, bottom_grad_h, bottom_grad_c
+
+    def clear_grad(self):
+               #中间变量
+        self.pre_inputs.clear()
+        self.ingate.clear()
+        self.forgetgate.clear()
+        self.cellgate.clear()
+        self.outgate.clear()
+        self.cy.clear()
+        self.cx.clear()
+        self.hy.clear()
+        self.hx.clear()
+
+        #梯度
+        self.grad_weight_ih.clear()
+        self.grad_weight_hh.clear()
+        self.grad_bias_ih.clear()
+        self.grad_bias_hh.clear()
 
 class LSTMTest(torch.nn.Module):
     def __init__(self, input_size, hidden_size, bias=True):
@@ -262,18 +295,20 @@ if __name__ == "__main__":
             print("error")
             return 
         
-        print(torch.max(torch.abs(value1 - value2) / torch.abs(value1)))
+        print(torch.max(torch.abs(value1 / value2)), torch.min(torch.abs(value1 / value2)))
         
     print("begin ------------lstm---------------")
 
     cx = torch.randn((1, 256), requires_grad=True)
     hx = torch.randn((1, 256), requires_grad=True)
-    inputs = torch.randn(1,32*3*3, requires_grad=True)
+    input1 = torch.randn(1,32*3*3, requires_grad=True)
+    input2 = torch.randn(1,32*3*3, requires_grad=True)
 
 
+    print("---one element test -----")
     #标准model
-    test = LSTMTest(32 * 3 * 3, 256)
-    h1, c1 = test((inputs, (hx,cx)))
+    test1 = LSTMTest(32 * 3 * 3, 256)
+    h1, c1 = test1((input1, (hx,cx)))
 
     #print(h1)
     #print(c1)
@@ -281,30 +316,67 @@ if __name__ == "__main__":
 
 
     LSTM = LSTMCell(32 * 3 * 3, 256)
-    LSTM.weight_hh = test.lstm.weight_hh.data
-    LSTM.weight_ih = test.lstm.weight_ih.data
-    LSTM.bias_hh = test.lstm.bias_hh.data
-    LSTM.bias_ih = test.lstm.bias_ih.data
-    print(LSTM.weight_hh.shape)
-    print(LSTM.bias_hh.shape)
-    h2,c2 = LSTM.forward(inputs, (hx,cx))
+    LSTM.weight_hh = test1.lstm.weight_hh.data
+    LSTM.weight_ih = test1.lstm.weight_ih.data
+    LSTM.bias_hh = test1.lstm.bias_hh.data
+    LSTM.bias_ih = test1.lstm.bias_ih.data
+    
+    
+    h2,c2 = LSTM.forward(input1, (hx,cx))
     #print(h2)
     #print(c2)
-    bottom_grad_inputs, bottom_grad_h, bottom_grad_c = LSTM.backward(torch.ones(h1.shape),None)
-    eval(test.lstm.weight_hh.grad , LSTM.grad_weight_hh)
-    eval(test.lstm.weight_ih.grad , LSTM.grad_weight_ih)
-    eval(test.lstm.bias_ih.grad , LSTM.grad_bias_ih)
-    eval(test.lstm.bias_hh.grad , LSTM.grad_bias_hh)
-    eval(hx.grad , bottom_grad_h)
-    eval(cx.grad , bottom_grad_c)
+    eval(h1,h2)
+    eval(c1,c2)
+    bottom_grad_inputs, bottom_grad_h, bottom_grad_c = LSTM.backward([torch.ones(h1.shape)],None)
+    eval(test1.lstm.weight_hh.grad , LSTM.grad_weight_hh[0])
+    eval(test1.lstm.weight_ih.grad , LSTM.grad_weight_ih[0])
+    eval(test1.lstm.bias_ih.grad , LSTM.grad_bias_ih[0])
+    eval(test1.lstm.bias_hh.grad , LSTM.grad_bias_hh[0])
+    eval(hx.grad , bottom_grad_h[0])
+    eval(cx.grad , bottom_grad_c[0])
     print()
-    eval(inputs.grad , bottom_grad_inputs)
-    print(test.lstm.bias_hh.grad.shape, LSTM.grad_bias_hh.shape)
-    print(test.lstm.weight_hh.grad.shape, LSTM.grad_weight_hh.shape)
-    print(hx.grad.shape, bottom_grad_h.shape)
-    print(cx.grad.shape, bottom_grad_c.shape)
-    print(inputs.grad.shape, bottom_grad_inputs.shape)
+    eval(input1.grad , bottom_grad_inputs[0])
+    
+    print("---two element test -----")
+    
+    cx = torch.randn((1, 256), requires_grad=True)
+    hx = torch.randn((1, 256), requires_grad=True)
+    input1 = torch.randn(1,32*3*3, requires_grad=True)
+    input2 = torch.randn(1,32*3*3, requires_grad=True)
 
+    test1 = LSTMTest(32 * 3 * 3, 256)
+    h1, c1 = test1((input1, (hx,cx)))
+    h2, c2 = test1((input2, (hx,cx)))
+    #print(h1)
+    #print(c1)
+    (h1 + h2).sum().backward()
+
+
+    LSTM.clear_grad()
+    LSTM.weight_hh = test1.lstm.weight_hh.data
+    LSTM.weight_ih = test1.lstm.weight_ih.data
+    LSTM.bias_hh = test1.lstm.bias_hh.data
+    LSTM.bias_ih = test1.lstm.bias_ih.data
+
+    h3,c3 = LSTM.forward(input1, (hx,cx))
+    h4,c4 = LSTM.forward(input2, (hx,cx))
+    bottom_grad_inputs, bottom_grad_h, bottom_grad_c = LSTM.backward([torch.ones(h3.shape), torch.ones(h4.shape)],None)
+    
+
+    eval(h1,h3)
+    eval(c1,c3)
+    eval(h2,h4)
+    eval(c2,c4)
+    eval(test1.lstm.weight_hh.grad , sum(LSTM.grad_weight_hh))
+    eval(test1.lstm.weight_ih.grad , sum(LSTM.grad_weight_ih))
+    eval(test1.lstm.bias_ih.grad , sum(LSTM.grad_bias_ih))
+    eval(test1.lstm.bias_hh.grad , sum(LSTM.grad_bias_hh))
+    eval(hx.grad , sum(bottom_grad_h))
+    eval(cx.grad , sum(bottom_grad_c))
+    print()
+    eval(input1.grad , bottom_grad_inputs[0])
+    eval(input2.grad , bottom_grad_inputs[1])
+    '''
     print("begin ------------conv---------------")
 
     #conv_test
@@ -364,3 +436,4 @@ if __name__ == "__main__":
 
     print(sum(sum(abs(bottom_grad-input.grad))))
     print(bottom_grad.shape, input.grad.shape)
+    '''
