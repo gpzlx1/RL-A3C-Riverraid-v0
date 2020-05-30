@@ -228,10 +228,13 @@ class LSTMCell(Layer):
 
     def backward(self, top_grad_h, top_grad_c):
         bottom_grad_inputs = []
-        for i in range(len(top_grad_h)):
-            grad_outgate = torch.tanh(self.cy[i]).mul(top_grad_h[i])
+        bottom_grad_c = 0
+        bottom_grad_h = 0
+        for i in reversed(range(len(top_grad_h))):
+            top_grad_h_this_iteration = top_grad_h[i] + bottom_grad_h
+            grad_outgate = torch.tanh(self.cy[i]).mul(top_grad_h_this_iteration)
             temp = torch.tanh(self.cy[i])
-            grad_c = (1 - temp.mul(temp)).mul(self.outgate[i]).mul(top_grad_h[i])
+            grad_c = (1 - temp.mul(temp)).mul(self.outgate[i]).mul(top_grad_h_this_iteration) + top_grad_c[i] + bottom_grad_c
 
             grad_forgetgate = self.cx[i].mul(grad_c)
             grad_ingate = self.cellgate[i].mul(grad_c)
@@ -255,7 +258,14 @@ class LSTMCell(Layer):
             bottom_grad_inputs.append( di_input.matmul(param_ii).add(df_input.matmul(param_if)).add( \
                     dg_input.matmul(param_ig)).add(do_input.matmul(param_io)) )
 
-        return bottom_grad_inputs
+            
+            bottom_grad_c = self.forgetgate[i] * grad_c
+            param_hi, param_hf, param_hg, param_ho = self.weight_hh.chunk(4,0)
+
+            bottom_grad_h = di_input.matmul(param_hi) + df_input.matmul(param_hf) +\
+                                    dg_input.matmul(param_hg) + do_input.matmul(param_ho)
+
+        return bottom_grad_inputs.reverse()
 
     def clear_grad(self):
                #中间变量
@@ -310,14 +320,15 @@ if __name__ == "__main__":
 
     print("---many elements test -----")
     loss = 0
-    top_grad_lstm = []
+    top_grad_h = []
+    top_grad_c = []
 
     cx = torch.randn((1, 256))
     hx = torch.randn((1, 256))
 
-    for i in range(2):
-        hx = hx.detach()
-        cx = cx.detach()
+    for i in range(200):
+        #hx = hx.detach()
+        #cx = cx.detach()
         inputs = torch.randn(1,32*3*3)
         mh,mc = LSTM.forward(inputs, (hx,cx))
         hx, cx = test1((inputs, (hx,cx)))
@@ -325,10 +336,11 @@ if __name__ == "__main__":
         loss = loss + hx.sum()
 
         
-        top_grad_lstm.append(torch.ones(mh.shape))
+        top_grad_h.append(torch.ones(mh.shape))
+        top_grad_c.append(torch.zeros(mc.shape))
 
     loss.backward()
-    bottom_grad_inputs = LSTM.backward(top_grad_lstm, None)
+    bottom_grad_inputs = LSTM.backward(top_grad_h, top_grad_c)
 
     eval(test1.lstm.weight_hh.grad , sum(LSTM.grad_weight_hh))
     eval(test1.lstm.weight_ih.grad , sum(LSTM.grad_weight_ih))
