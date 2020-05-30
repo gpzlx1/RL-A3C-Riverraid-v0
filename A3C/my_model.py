@@ -6,9 +6,12 @@ import layers
 
 def grad_elu(grad_y, x):
     # assume for elu, alpha = 1
-    zero = torch.zeros(x.shape)
-    bottom_grad = torch.where(x > 0, zero, x)
-    return (bottom_grad + 1) * grad_y
+    bottom_grad_list = []
+    zero = torch.zeros(x[0].shape)
+    for i in range(len(grad_y)):
+        bottom_grad = torch.where(x[i] > 0, zero, x[i])
+        bottom_grad_list.append(bottom_grad.add(1).mul(grad_y[i]))
+    return bottom_grad_list
 
 def grad_loss(values,logits,rewards,actions,params):
     R = torch.zeros(1, 1)
@@ -81,26 +84,47 @@ class AcotrCritic(object):
         self.lstm.init_bias(random=False)
         
         #grad
-        self.x1 = None
-        self.x2 = None
-        self.x3 = None
-        self.x4 = None
+        self.x1 = []
+        self.x2 = []
+        self.x3 = []
+        self.x4 = []
+
+    def clear_grad(self):
+        self.x1.clear()
+        self.x2.clear()
+        self.x3.clear()
+        self.x4.clear()
+        
+        self.conv1.clear_grad()
+        self.conv2.clear_grad()
+        self.conv3.clear_grad()
+        self.conv4.clear_grad()
+
+        self.lstm.clear_grad()
+        
+        self.actor_linear.clear_grad()
+        self.critic_linear.clear_grad()
 
 
 
     def forward(self, inputs):
         inputs, (hx, cx) = inputs
-        self.x1 = self.conv1.forward(inputs)
-        x = F.elu(self.x1)
 
-        self.x2 = self.conv2.forward(x)
-        x = F.elu(self.x2)
+        x = self.conv1.forward(inputs)
+        self.x1.append(x)
+        x = F.elu(x)
+        
+        x = self.conv2.forward(x)
+        self.x2.append(x)
+        x = F.elu(x)
 
-        self.x3 = self.conv3.forward(x)
-        x = F.elu(self.x3)
+        x = self.conv3.forward(x)
+        self.x3.append(x)
+        x = F.elu(x)
 
-        self.x4 = self.conv4.forward(x)
-        x = F.elu(self.x4)
+        x = self.conv4.forward(x)
+        self.x4.append(x)
+        x = F.elu(x)
 
         # x.shape = 1, 32, 3, 3
         x = x.view(-1, 32 * 3 * 3)
@@ -112,15 +136,24 @@ class AcotrCritic(object):
         return self.critic_linear.forward(x), self.actor_linear.forward(x), (hx, cx)
 
     def backward(self, top_grad_value, top_grad_logit):
+        grad_inputs = []
+        if len(top_grad_logit) != len(top_grad_logit):
+            print("error in model backward")
+            raise NotImplementedError
+
         grad_critic_linear = self.critic_linear.backward(top_grad_value)
         grad_actor_liner = self.actor_linear.backward(top_grad_logit)
         
-        top_grad_lstm = grad_critic_linear + grad_actor_liner
+
+        top_grad_lstm = []
+        
+        for  i in range(len(grad_critic_linear)):
+            top_grad_lstm.append(grad_critic_linear[i] + grad_actor_liner[i])
         
 
-        top_grad_conv4, _, _ = self.lstm.backward(top_grad_lstm, None)
+        top_grad_conv4 = self.lstm.backward(top_grad_lstm, None)
 
-        top_grad_conv4 = top_grad_conv4.view(-1, 32, 3, 3)
+        top_grad_conv4 = [ element.view(-1, 32, 3, 3) for element in top_grad_conv4 ]
 
         top_grad_conv4 = grad_elu(top_grad_conv4, self.x4)
         top_grad_conv3 = self.conv4.backward(top_grad_conv4)
@@ -150,95 +183,17 @@ class AcotrCritic(object):
 
 
 def eval(value1, value2):
+    value1 = sum(value1)
     if value1.shape != value2.shape:
         print("error")
         return 
     
-    print(torch.max(torch.abs((value1  + 1)/(value2 + 1))))
-    print(torch.min(torch.abs((value1  + 1)/(value2 + 1))))
-
-'''
-if __name__ == "__main__":
-    inputs = torch.randn((1,288)) 
-    inputs.requires_grad = True
-    cx = torch.randn((1, 256))
-    hx = torch.randn((1, 256))
-
-    linear1 = torch.nn.Linear(256,1)
-    linear2 = torch.nn.Linear(256,4)
-    lstm = torch.nn.LSTMCell(32 * 3 * 3, 256)
-    x1, _ = lstm(inputs, (hx,cx))
-    value = linear1(x1)
-    logit = linear2(x1)
-    loss = value + logit.sum() * 0.5
-    loss.backward()
-
-    my_lstm = layers.LSTMCell(32 * 3 * 3, 256)
-    my_lstm.weight_ih = lstm.weight_ih.data
-    my_lstm.weight_hh = lstm.weight_hh.data
-    my_lstm.bias_hh = lstm.bias_hh.data
-    my_lstm.bias_ih = lstm.bias_ih.data
-
-    my_linear1 = layers.Linear(256,1)
-    my_linear1.weight = linear1.weight.data
-    my_linear1.bias = linear1.bias.data
-    my_linear2 = layers.Linear(256,18)
-    my_linear2.weight = linear2.weight.data
-    my_linear2.bias = linear2.bias.data
+    print(torch.max(torch.abs((value1  + 1)/(value2 + 1))),torch.min(torch.abs((value1  + 1)/(value2 + 1))),torch.mean(torch.abs((value1  + 1)/(value2 + 1))))
+    print()
 
 
-    x2, _ = my_lstm.forward(inputs, (hx,cx))
-    my_value = my_linear1.forward(x2)
-    my_logit = my_linear2.forward(x2)
-    my_loss = my_value + (my_logit).sum()
 
-    print(loss, my_loss)
-
-    a = my_linear1.backward(torch.ones(my_value.shape))
-    b = my_linear2.backward(torch.ones(my_logit.shape) * 0.5 )
-    my_inputs_grad, _, _ = my_lstm.backward(a+b, None)
-    eval(my_linear1.grad_weight, linear1.weight.grad)
-    eval(my_linear1.grad_bias, linear1.bias.grad)
-    eval(my_linear2.grad_weight, linear2.weight.grad)
-    eval(my_linear2.grad_bias, linear2.bias.grad)
-    
-    eval(my_lstm.grad_bias_hh, lstm.bias_hh.grad)
-    eval(my_lstm.grad_bias_ih, lstm.bias_ih.grad)
-    eval(my_lstm.grad_weight_hh, lstm.weight_hh.grad)
-    eval(my_lstm.grad_weight_ih, lstm.weight_ih.grad)
-    eval(my_inputs_grad, inputs.grad) 
-'''
-if __name__ == "__main__":
-    from envs import create_atari_env
-    import model
-    print("-----------------test model forward-------------")
-    env = create_atari_env("Riverraid-v0")
-    my_model = AcotrCritic(env.observation_space.shape[0], env.action_space)
-    model = model.ActorCritic(env.observation_space.shape[0], env.action_space)
-    state = env.reset()
-    state = torch.Tensor(state)
-    inputs = state.unsqueeze(0)
-    inputs.requires_grad = True
-    cx = torch.zeros(1, 256)
-    hx = torch.zeros(1, 256)
-
-    my_value, my_logit, (my_hx, my_cx) = my_model.forward((inputs, (hx, cx)))
-    value, logit, (hx, cx) = model((inputs, (hx, cx)))
-    
-    
-    
-    
-    print("--- check output shape ---")
-    my_value, my_logit, (my_hx, my_cx) = my_model.forward((state.unsqueeze(0), (hx, cx)))
-    value, logit, (hx, cx) = model((state.unsqueeze(0), (hx, cx)))
-    
-    print(value.shape, my_value.shape)
-    print(logit.shape, my_logit.shape)
-    print(hx.shape, my_hx.shape)
-    print(cx.shape, my_cx.shape)
-    
-    print("--- check output accuracy ---")
-
+def copy_weight(model, my_model):
     print("-- conv --")
     if my_model.conv1.weight.shape == model.conv1.weight.shape:
         my_model.conv1.weight = model.conv1.weight.data
@@ -317,36 +272,7 @@ if __name__ == "__main__":
     else:
         print("error")
 
-
-    cx = cx.detach()
-    hx = hx.detach()
-    my_value, my_logit, (my_hx, my_cx) = my_model.forward((inputs, (hx, cx)))
-    value, logit, (hx, cx) = model((inputs, (hx, cx)))
-
-
-    print("--- output accurancy")
-    eval(my_value, value)
-    eval(logit , my_logit)
-    eval(hx , my_hx)
-    eval(cx , my_cx)
-    
-
-    
-    print("---- checkout model backward ----")
-
-
-    loss =  value + logit.sum() 
-    loss.backward()
-
-    top_grad_logit = torch.ones(logit.shape) 
-    top_grad_value = torch.ones(value.shape) 
-
-    grad_inputs = my_model.backward(top_grad_value, top_grad_logit)
-    #a = my_model.critic_linear.backward(torch.ones(my_value.shape))
-    #b = my_model.actor_linear.backward(torch.ones(my_logit.shape))
-    #my_inputs_grad, _, _ = my_model.lstm.backward(a+b, None)
-
-    
+def check(model, my_model):
     print("--- linear")
     eval(my_model.actor_linear.grad_weight, model.actor_linear.weight.grad)
     eval(my_model.actor_linear.grad_bias, model.actor_linear.bias.grad)
@@ -373,54 +299,51 @@ if __name__ == "__main__":
     eval(my_model.conv1.grad_bias, model.conv1.bias.grad)
 
     print("--- input")
-    eval(grad_inputs, inputs.grad)
+    #eval(grad_inputs, inputs.grad)
+
+
+
+
+if __name__ == "__main__":
+    from envs import create_atari_env
+    import model
+    print("-----------------test model forward-------------")
+    print("-------------many element ---------------")
+    env = create_atari_env("Riverraid-v0")
+    my_model = AcotrCritic(env.observation_space.shape[0], env.action_space)
+    model = model.ActorCritic(env.observation_space.shape[0], env.action_space)
+    state = env.reset()
+    state = torch.Tensor(state)
+
+    print("---- checkout model backward ----")
+    copy_weight(model,my_model)
+    top_grad_logit = []
+    top_grad_value = []
+    loss = 0
+    my_model.clear_grad()
+    for i in range(1000):
+        inputs = torch.randn(state.unsqueeze(0).shape)
+        cx = torch.randn(1, 256)
+        hx = torch.randn(1, 256)
+
+        my_value, my_logit, _ = my_model.forward((inputs, (hx, cx)))
+        value, logit, _ = model((inputs, (hx, cx)))
+
+        loss =  value + logit.sum() + loss
+        
+        top_grad_logit.append(torch.ones(logit.shape))
+        top_grad_value.append(torch.ones(value.shape))
+
+
+        #a = my_model.critic_linear.backward(torch.ones(my_value.shape))
+        #b = my_model.actor_linear.backward(torch.ones(my_logit.shape))
+        #my_inputs_grad, _, _ = my_model.lstm.backward(a+b, None)
+        
+    loss.backward()
+    my_model.backward(top_grad_value, top_grad_logit)
+    check(model, my_model)
 
     '''
-    print("--- test")
-    inputs = torch.randn((1,32,6,6)) 
-    inputs.requires_grad = True
-    cx = torch.randn((1, 256))
-    hx = torch.randn((1, 256))
-
-    conv4_result = F.elu(model.conv4(inputs))
-    conv4_result = conv4_result.view(-1, 288)
-    c,d = model.lstm(conv4_result, (hx,cx))
-
-    my_conv4_result = F.elu(my_model.conv4.forward(inputs))
-    my_conv4_result = my_conv4_result.view(-1,288)
-    e,f = my_model.lstm.forward(my_conv4_result, (hx,cx))
-    eval(c,e)
-    eval(d,f)
-
-    x1 = c
-    x2 = e
-    value = model.critic_linear(x1)
-    logit = model.actor_linear(x1)
-
-    my_value = my_model.critic_linear.forward(x2)
-    my_logit = my_model.actor_linear.forward(x2)
-
-    eval(value, my_value)
-    eval(logit, my_logit)
-
-    l = (value + logit.sum()).backward()
-    #a = my_model.critic_linear.backward(torch.ones(my_value.shape))
-    #b = my_model.actor_linear.backward(torch.ones(my_logit.shape))
-    #bottom_lstm_grad, _, _ = my_model.lstm.backward(a+b, None)
-
-    my_model.backward(torch.ones(my_value.shape), torch.ones(my_logit.shape))
-
-    eval(my_model.lstm.grad_bias_hh, model.lstm.bias_hh.grad)
-    eval(my_model.lstm.grad_bias_ih, model.lstm.bias_ih.grad)
-    eval(my_model.lstm.grad_weight_hh, model.lstm.weight_hh.grad)
-    eval(my_model.lstm.grad_weight_ih, model.lstm.weight_ih.grad)
-
-    bottom_lstm_grad = grad_elu(bottom_lstm_grad.view(-1, 32, 3, 3))
-    bottom_lstm_grad = bottom_lstm_grad
-    my_inputs_grad = my_model.conv4.backward(bottom_lstm_grad)
-    eval(my_inputs_grad, inputs.grad)
-    '''
-
     print("---- checkout loss backward ----")
     values = []
     log_probs = []
@@ -479,4 +402,4 @@ if __name__ == "__main__":
 
     (policy_loss + value_loss_coef * value_loss).backward()
     top_grad_value,top_grad_logit = grad_loss(values,logits,rewards,actions,params)
-
+    '''
