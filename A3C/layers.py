@@ -237,8 +237,8 @@ class LSTMCell(Layer):
             grad_ingate = self.cellgate[i].mul(grad_c)
             grad_cellgate = self.ingate[i].mul(grad_c)
 
-            df_input = self.forgetgate[i].mul(1 - self.forgetgate[i]).mul(grad_forgetgate)
             di_input = self.ingate[i].mul(1 - self.ingate[i]).mul(grad_ingate)
+            df_input = self.forgetgate[i].mul(1 - self.forgetgate[i]).mul(grad_forgetgate)
             dg_input = (1 - self.cellgate[i].mul(self.cellgate[i])).mul(grad_cellgate)
             do_input = self.outgate[i].mul(1 - self.outgate[i]).mul(grad_outgate)
 
@@ -295,7 +295,7 @@ if __name__ == "__main__":
             print("error")
             return 
         
-        print(torch.max(torch.abs(value1 / value2)), torch.min(torch.abs(value1 / value2)))
+        print(torch.max(torch.abs(value1 / value2)), torch.min(torch.abs(value1 / value2)), torch.mean(torch.abs(value1 / value2)))
         
     print("begin ------------lstm---------------")
 
@@ -312,15 +312,19 @@ if __name__ == "__main__":
     loss = 0
     top_grad_lstm = []
 
-    for i in range(100):
-        cx = torch.randn((1, 256))
-        hx = torch.randn((1, 256))
+    cx = torch.randn((1, 256))
+    hx = torch.randn((1, 256))
+
+    for i in range(2):
+        hx = hx.detach()
+        cx = cx.detach()
         inputs = torch.randn(1,32*3*3)
-        h, c = test1((inputs, (hx,cx)))
-
-        loss = loss + h.sum()
-
         mh,mc = LSTM.forward(inputs, (hx,cx))
+        hx, cx = test1((inputs, (hx,cx)))
+        
+        loss = loss + hx.sum()
+
+        
         top_grad_lstm.append(torch.ones(mh.shape))
 
     loss.backward()
@@ -334,7 +338,7 @@ if __name__ == "__main__":
 
 
 
-    
+    '''
     print("begin ------------conv---------------")
     print("---many element test -----")
     
@@ -388,7 +392,7 @@ if __name__ == "__main__":
     bottom_grad = my_linear.backward(top_grad_linear)
     eval(linear.weight.grad, sum(my_linear.grad_weight))
     eval(linear.bias.grad, sum(my_linear.grad_bias))
-
+    '''
     
     
     
