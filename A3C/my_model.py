@@ -12,12 +12,13 @@ def grad_elu(grad_y, x):
 
 def grad_loss(values,logits,rewards,actions,params):
     R = torch.zeros(1, 1)
+    grad_value = []
     gae = torch.zeros(1, 1)
-    grad_value = torch.zeros(1,1)
+    grad_logits = []
     for i in reversed(range(len(rewards))):
         #grad_value
         R = params.gamma * R + rewards[i]
-        grad_value += params.value_loss_coef*(values[i] - R)    #value累和
+        grad_value.append(params.value_loss_coef*(values[i] - R))    #value累和
 
         #grad_logit
         delta_t = rewards[i] + params.gamma * \
@@ -29,7 +30,6 @@ def grad_loss(values,logits,rewards,actions,params):
         log_prob = F.log_softmax(logits[i], dim=-1)
         grad_logits_log = torch.zeros(logits[i].shape)
         grad_logits_ent = torch.zeros(logits[i].shape)
-        grad_logits = torch.zeros(logits[i].shape)
         #grad_entropies
         for j in range(logits[i].shape[1]):
             for k in range(logits[i].shape[1]):
@@ -44,8 +44,8 @@ def grad_loss(values,logits,rewards,actions,params):
                 grad_logits_log[0][j] += grad_log_probs[0][0]*(1-prob[0][j])
             else:
                 grad_logits_log[0][j] += -grad_log_probs[0][0]*prob[0][j]
-        grad_logits = torch.add(torch.add(grad_logits_log,grad_logits_ent),grad_logits)
-    return grad_value,grad_logits
+        grad_logits.append(torch.add(grad_logits_log,grad_logits_ent))
+    return grad_value[::-1],grad_logits[::-1]
 
 
 class AcotrCritic(object):
