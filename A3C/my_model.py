@@ -302,7 +302,7 @@ def check(model, my_model):
     #eval(grad_inputs, inputs.grad)
 
 
-def check_model_backward(model, my_model):
+def model_backward(model, my_model):
     top_grad_logit = []
     top_grad_value = []
     loss = 0
@@ -323,6 +323,7 @@ def check_model_backward(model, my_model):
     return top_grad_logit, top_grad_value, loss
 
 if __name__ == "__main__":
+    import random 
     from envs import create_atari_env
     import model
     print("-----------------test model forward-------------")
@@ -384,6 +385,9 @@ if __name__ == "__main__":
         log_prob = log_prob.gather(1, action)
         
         state, reward, done, _ = env.step(action.numpy())
+        
+        reward = 20.0 if random.random() > 0.5 else 0.0
+        print(reward)
         done = done or episode_length >= args.max_episode_length
         reward = max(min(reward, 1), -1)
 
@@ -429,4 +433,5 @@ if __name__ == "__main__":
     top_grad_value, top_grad_logit = grad_loss(my_values, my_logits, rewards, actions, args)
     my_model.backward(top_grad_value, top_grad_logit)
     check(model, my_model)
+    print(rewards)
   
