@@ -264,17 +264,17 @@ class LSTMCell(Layer):
             self.grad_bias_hh.append(torch.cat((grad_bi, grad_bf, grad_bg, grad_bo),1).squeeze(0))
             self.grad_bias_ih = self.grad_bias_hh
 
-            bottom_grad_c.append( self.forgetgate[i].mul(grad_c) )
+            #bottom_grad_c.append( self.forgetgate[i].mul(grad_c) )
 
-            param_hi, param_hf, param_hg, param_ho = self.weight_hh.chunk(4,0)
-            bottom_grad_h.append( di_input.matmul(param_hi).add(df_input.matmul(param_hf)).add(\
-                    dg_input.matmul(param_hg)).add( do_input.matmul(param_ho) ) )
+            #param_hi, param_hf, param_hg, param_ho = self.weight_hh.chunk(4,0)
+            #bottom_grad_h.append( di_input.matmul(param_hi).add(df_input.matmul(param_hf)).add(\
+            #        dg_input.matmul(param_hg)).add( do_input.matmul(param_ho) ) )
 
             param_ii, param_if, param_ig, param_io = self.weight_ih.chunk(4,0)
             bottom_grad_inputs.append( di_input.matmul(param_ii).add(df_input.matmul(param_if)).add( \
                     dg_input.matmul(param_ig)).add(do_input.matmul(param_io)) )
 
-        return bottom_grad_inputs, bottom_grad_h, bottom_grad_c
+        return bottom_grad_inputs#, bottom_grad_h, bottom_grad_c
 
     def clear_grad(self):
                #中间变量
@@ -323,183 +323,93 @@ if __name__ == "__main__":
     input1 = torch.randn(1,32*3*3, requires_grad=True)
     input2 = torch.randn(1,32*3*3, requires_grad=True)
 
-
-    print("---one element test -----")
-    #标准model
     test1 = LSTMTest(32 * 3 * 3, 256)
-    h1, c1 = test1((input1, (hx,cx)))
-
-    #print(h1)
-    #print(c1)
-    h1.sum().backward()
-
-
     LSTM = LSTMCell(32 * 3 * 3, 256)
     LSTM.weight_hh = test1.lstm.weight_hh.data
     LSTM.weight_ih = test1.lstm.weight_ih.data
     LSTM.bias_hh = test1.lstm.bias_hh.data
     LSTM.bias_ih = test1.lstm.bias_ih.data
-    
-    
-    h2,c2 = LSTM.forward(input1, (hx,cx))
-    #print(h2)
-    #print(c2)
-    eval(h1,h2)
-    eval(c1,c2)
-    bottom_grad_inputs, bottom_grad_h, bottom_grad_c = LSTM.backward([torch.ones(h1.shape)],None)
-    eval(test1.lstm.weight_hh.grad , LSTM.grad_weight_hh[0])
-    eval(test1.lstm.weight_ih.grad , LSTM.grad_weight_ih[0])
-    eval(test1.lstm.bias_ih.grad , LSTM.grad_bias_ih[0])
-    eval(test1.lstm.bias_hh.grad , LSTM.grad_bias_hh[0])
-    eval(hx.grad , bottom_grad_h[0])
-    eval(cx.grad , bottom_grad_c[0])
-    print()
-    eval(input1.grad , bottom_grad_inputs[0])
-    
-    print("---two element test -----")
-
-    cx = torch.randn((1, 256), requires_grad=True)
-    hx = torch.randn((1, 256), requires_grad=True)
-    input1 = torch.randn(1,32*3*3, requires_grad=True)
-    input2 = torch.randn(1,32*3*3, requires_grad=True)
-
-    test1 = LSTMTest(32 * 3 * 3, 256)
-    h1, c1 = test1((input1, (hx,cx)))
-    h2, c2 = test1((input2, (hx,cx)))
-    #print(h1)
-    #print(c1)
-    (h1 + h2).sum().backward()
-
-
     LSTM.clear_grad()
-    LSTM.weight_hh = test1.lstm.weight_hh.data
-    LSTM.weight_ih = test1.lstm.weight_ih.data
-    LSTM.bias_hh = test1.lstm.bias_hh.data
-    LSTM.bias_ih = test1.lstm.bias_ih.data
+    print("---many elements test -----")
+    loss = 0
+    top_grad_lstm = []
+    for i in range(2000):
+        cx = torch.randn((1, 256))
+        hx = torch.randn((1, 256))
+        inputs = torch.randn(1,32*3*3)
+        h, c = test1((inputs, (hx,cx)))
 
-    h3,c3 = LSTM.forward(input1, (hx,cx))
-    h4,c4 = LSTM.forward(input2, (hx,cx))
-    bottom_grad_inputs, bottom_grad_h, bottom_grad_c = LSTM.backward([torch.ones(h3.shape), torch.ones(h4.shape)],None)
-    
+        loss = loss + h.sum()
 
-    eval(h1,h3)
-    eval(c1,c3)
-    eval(h2,h4)
-    eval(c2,c4)
+        mh,mc = LSTM.forward(inputs, (hx,cx))
+        top_grad_lstm.append(torch.ones(mh.shape))
+
+    loss.backward()
+    bottom_grad_inputs = LSTM.backward(top_grad_lstm, None)
+
     eval(test1.lstm.weight_hh.grad , sum(LSTM.grad_weight_hh))
     eval(test1.lstm.weight_ih.grad , sum(LSTM.grad_weight_ih))
     eval(test1.lstm.bias_ih.grad , sum(LSTM.grad_bias_ih))
     eval(test1.lstm.bias_hh.grad , sum(LSTM.grad_bias_hh))
-    eval(hx.grad , sum(bottom_grad_h))
-    eval(cx.grad , sum(bottom_grad_c))
-    print()
-    eval(input1.grad , bottom_grad_inputs[0])
-    eval(input2.grad , bottom_grad_inputs[1])
 
-    print("---one element test -----")
+
+
+
+    
     print("begin ------------conv---------------")
-    #conv_test
-    input = torch.randn(32,6,6).unsqueeze(0)
-    input.requires_grad = True
+    print("---many element test -----")
+    
 
     conv_1 = Conv2d(32, 32, 3, stride=2, padding=1)
-
     Convtest = torch.nn.Conv2d(32,32, 3, stride=2, padding=1)
     conv_1.weight = Convtest.weight.data
     conv_1.bias = Convtest.bias.data
 
-    #forward_test
-    result = Convtest(input)
-    my_result = conv_1.forward(input)
+    loss = 0
+    top_grad_conv = []
+    for i in range(2000):
+        #conv_test
+        input = torch.randn(32,6,6).unsqueeze(0)
 
-    #backward_test
-    result.sum().backward()
-    print("result", result.shape)
-    bottom_grad = conv_1.backward([torch.ones(result.shape)])
-    eval(Convtest.weight.grad,conv_1.grad_weight[0])
-    eval(Convtest.bias.grad,conv_1.grad_bias[0])
-    eval(input.grad,bottom_grad[0])
+        #forward_test
+        result = Convtest(input)
+        loss = loss + result
+        my_result = conv_1.forward(input)
+        top_grad_conv.append(torch.ones(result.shape))
+        #backward_test
+    loss.sum().backward()
 
-    print("begin ------------linear---------------")
-    #linear_test
-    input = torch.randn(1,256)
-    input.requires_grad = True
-    weight = torch.randn(18,256)
+    bottom_grad = conv_1.backward(top_grad_conv)
+    eval(Convtest.weight.grad,sum(conv_1.grad_weight))
+    eval(Convtest.bias.grad, sum(conv_1.grad_bias))
 
-    my_linear = Linear(256,18)
-    my_linear.load_weights(weight)
-
-    linear = torch.nn.Linear(256, 18)
-    linear.weight.data = weight
-    linear.bias.data = my_linear.bias
-
-    #forward_test
-    result = linear(input)
-    my_result = my_linear.forward(input)
-    print(sum(result-my_result))
-
-    #backward_test
-    result.sum().backward()
-    bottom_grad = my_linear.backward([torch.ones(result.shape)])
-    eval(linear.weight.grad,my_linear.grad_weight[0])
-    eval(linear.bias.grad,my_linear.grad_bias[0])
-    eval(input.grad,bottom_grad[0])
-
-    print("---two element test -----")
-    print("begin ------------conv---------------")
-    #conv_test
-    input = torch.randn(32,6,6).unsqueeze(0)
-    input.requires_grad = True
-    input2 = torch.randn(32,6,6).unsqueeze(0)
-    input2.requires_grad = True
-
-    conv_1 = Conv2d(32, 32, 3, stride=2, padding=1)
-
-    Convtest = torch.nn.Conv2d(32,32, 3, stride=2, padding=1)
-    conv_1.weight = Convtest.weight.data
-    conv_1.bias = Convtest.bias.data
-
-    #forward_test
-    result = Convtest(input)
-    my_result = conv_1.forward(input)
-    result2 = Convtest(input2)
-    my_result2 = conv_1.forward(input2)
-
-    #backward_test
-    (result+result2).sum().backward()
-    print("result", result.shape)
-    bottom_grad = conv_1.backward([torch.ones(result.shape),torch.ones(result.shape)])
-    eval(Convtest.weight.grad,conv_1.grad_weight[0]+conv_1.grad_weight[1])
-    eval(Convtest.bias.grad,conv_1.grad_bias[0]+conv_1.grad_bias[1])
-    eval(input.grad,bottom_grad[0])
-    eval(input2.grad,bottom_grad[1])
 
     print("begin ------------linear---------------")
+    print("---many element test -----")
     #linear_test
-    input = torch.randn(1,256)
-    input.requires_grad = True
-    input2 = torch.randn(1,256)
-    input2.requires_grad = True
-    weight = torch.randn(18,256)
-
-    my_linear = Linear(256,18)
-    my_linear.load_weights(weight)
-
     linear = torch.nn.Linear(256, 18)
-    linear.weight.data = weight
-    linear.bias.data = my_linear.bias
+    my_linear = Linear(256,18)
+    my_linear.weight = linear.weight.data 
+    my_linear.bias = linear.bias.data 
 
-    #forward_test
-    result = linear(input)
-    my_result = my_linear.forward(input)
-    result2 = linear(input2)
-    my_result2 = my_linear.forward(input2)
-    print(sum(result-my_result))
+    loss = 0
+    top_grad_linear = []
+    for i in range(2000):
+        input = torch.randn(1,256)
+        weight = torch.randn(18,256)
 
-    #backward_test
-    (result+result2).sum().backward()
-    bottom_grad = my_linear.backward([torch.ones(result.shape),torch.ones(result.shape)])
-    eval(linear.weight.grad,my_linear.grad_weight[0]+my_linear.grad_weight[1])
-    eval(linear.bias.grad,my_linear.grad_bias[0]+my_linear.grad_bias[0])
-    eval(input.grad,bottom_grad[0])
-    eval(input2.grad, bottom_grad[1])
+        #forward_test
+        result = linear(input)
+        my_result = my_linear.forward(input)
+        loss = loss +result.sum()
+        #backward_test
+        top_grad_linear.append(torch.ones(result.shape))
+    
+    loss.backward()
+    bottom_grad = my_linear.backward(top_grad_linear)
+    eval(linear.weight.grad, sum(my_linear.grad_weight))
+    eval(linear.bias.grad, sum(my_linear.grad_bias))
+
+    
+    
+    
