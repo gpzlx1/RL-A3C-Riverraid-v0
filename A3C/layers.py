@@ -232,7 +232,8 @@ class LSTMCell(Layer):
         bottom_grad_c = []
         for i in range(len(top_grad_h)):
             grad_outgate =  torch.tanh(self.cy[i]).mul(top_grad_h[i])
-            grad_c = (1 - (torch.tanh(self.cy[i]))**2).mul(self.outgate[i]).mul(top_grad_h[i])
+            temp = torch.tanh(self.cy[i])
+            grad_c = (1 - temp.mul(temp)).mul(self.outgate[i]).mul(top_grad_h[i])
 
             grad_forgetgate = self.cx[i].mul(grad_c)
             grad_ingate = self.cellgate[i].mul(grad_c)
@@ -240,16 +241,20 @@ class LSTMCell(Layer):
 
             df_input = self.forgetgate[i].mul(1 - self.forgetgate[i]).mul(grad_forgetgate)
             di_input = self.ingate[i].mul(1 - self.ingate[i]).mul(grad_ingate)
-            dg_input = (1 - (self.cellgate[i])**2).mul(grad_cellgate)
+            dg_input = (1 - self.cellgate[i].mul(self.cellgate[i])).mul(grad_cellgate)
             do_input = self.outgate[i].mul(1 - self.outgate[i]).mul(grad_outgate)
 
-            grad_Wif = df_input.t().matmul(self.pre_inputs[i])
-            grad_Whf = df_input.t().matmul(self.hx[i])
-            grad_bf = df_input
+
 
             grad_Wii = di_input.t().matmul(self.pre_inputs[i])
             grad_Whi = di_input.t().matmul(self.hx[i])
             grad_bi =  di_input
+
+            
+            grad_Wif = df_input.t().matmul(self.pre_inputs[i])
+            grad_Whf = df_input.t().matmul(self.hx[i])
+            grad_bf = df_input
+
 
             grad_Wig = dg_input.t().matmul(self.pre_inputs[i])
             grad_Whg = dg_input.t().matmul(self.hx[i])
