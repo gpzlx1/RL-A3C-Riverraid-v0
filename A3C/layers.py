@@ -316,8 +316,9 @@ if __name__ == "__main__":
             print("error")
             return 
         
-        print(torch.max(torch.abs(value1 / value2)), torch.min(torch.abs(value1 / value2)), torch.mean(torch.abs(value1 / value2)))
-        '''
+        print(torch.max(torch.abs(value1 / value2)), torch.min(torch.abs(value1 / value2)), torch.mean(torch.abs(torch.abs(value1 / value2)-1)))
+        
+
     print("begin ------------lstm---------------")
 
 
@@ -340,7 +341,7 @@ if __name__ == "__main__":
     mc = cx
     first_cx = cx
     first_hx = hx
-    for i in range(10000):
+    for i in range(1000):
         inputs = torch.randn(1,32*3*3,requires_grad=True)
         mh,mc = LSTM.forward(inputs, (mh,mc))
         hx, cx = test1((inputs, (hx,cx)))
@@ -360,7 +361,7 @@ if __name__ == "__main__":
     eval(test1.lstm.weight_ih.grad , LSTM.grad_weight_ih)
     eval(test1.lstm.bias_ih.grad , LSTM.grad_bias_ih)
     eval(test1.lstm.bias_hh.grad , LSTM.grad_bias_hh)
-'''
+
 
 
     
@@ -375,7 +376,7 @@ if __name__ == "__main__":
 
     loss = 0
     top_grad_conv = []
-    for i in range(10000):
+    for i in range(1000):
         #conv_test
         input = torch.randn(32,6,6).unsqueeze(0)
 
@@ -402,7 +403,7 @@ if __name__ == "__main__":
 
     loss = 0
     top_grad_linear = []
-    for i in range(10000):
+    for i in range(1000):
         input = torch.randn(1,256)
         weight = torch.randn(18,256)
 
