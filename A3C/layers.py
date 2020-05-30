@@ -245,7 +245,7 @@ class LSTMCell(Layer):
             self.grad_bias_hh.append(torch.cat((grad_bi, grad_bf, grad_bg, grad_bo),1).squeeze(0))
             self.grad_bias_ih = self.grad_bias_hh
 
-            bottom_grad_c.append( self.forgetgate[i] * grad_c )
+            bottom_grad_c.append( self.forgetgate[i].mul(grad_c) )
 
             param_hi, param_hf, param_hg, param_ho = self.weight_hh.chunk(4,0)
             bottom_grad_h.append( di_input.matmul(param_hi) + df_input.matmul(param_hf) +\
@@ -338,7 +338,7 @@ if __name__ == "__main__":
     eval(input1.grad , bottom_grad_inputs[0])
     
     print("---two element test -----")
-    
+
     cx = torch.randn((1, 256), requires_grad=True)
     hx = torch.randn((1, 256), requires_grad=True)
     input1 = torch.randn(1,32*3*3, requires_grad=True)
