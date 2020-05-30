@@ -48,7 +48,7 @@ def grad_loss(values,logits,rewards,actions,params):
             else:
                 grad_logits_log[0][j] += -grad_log_probs[0][0]*prob[0][j]
         grad_logits.append(torch.add(grad_logits_log,grad_logits_ent))
-    return grad_value[::-1],grad_logits[::-1]
+    return grad_value[::-1], grad_logits[::-1]
 
 
 class AcotrCritic(object):
@@ -188,7 +188,7 @@ def eval(value1, value2):
         print("error")
         return 
     
-    print(torch.max(torch.abs((value1)/(value2))),torch.min(torch.abs((value1)/(value2))),torch.mean(torch.abs(torch.abs(value1.div(value2)) - 1)))
+    print(torch.max(torch.abs((value1 + 1e-5)/(value2 + 1e-5))),torch.min(torch.abs((value1 + 1e-5)/(value2 + 1e-5))),torch.mean(torch.abs(torch.abs((value1 + 1e-5).div(value2 + 1e-5)) - 1)))
 
 
 
@@ -367,7 +367,7 @@ if __name__ == "__main__":
     episode_length = 0
     my_values = []
     my_logits = []
-    for step in range(500):
+    for step in range(1000):
         episode_length += 1
         my_value, my_logit, (my_hx, my_cx) = my_model.forward((state.unsqueeze(0),
                                             (my_hx, my_cx)))
