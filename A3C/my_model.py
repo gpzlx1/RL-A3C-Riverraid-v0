@@ -302,26 +302,12 @@ def check(model, my_model):
     #eval(grad_inputs, inputs.grad)
 
 
-
-
-if __name__ == "__main__":
-    from envs import create_atari_env
-    import model
-    print("-----------------test model forward-------------")
-    print("-------------many element ---------------")
-    env = create_atari_env("Riverraid-v0")
-    my_model = AcotrCritic(env.observation_space.shape[0], env.action_space)
-    model = model.ActorCritic(env.observation_space.shape[0], env.action_space)
-    state = env.reset()
-    state = torch.Tensor(state)
-
-    print("---- checkout model backward ----")
-    copy_weight(model,my_model)
+def check_model_backward(model, my_model):
     top_grad_logit = []
     top_grad_value = []
     loss = 0
     my_model.clear_grad()
-    for i in range(1000):
+    for i in range(50):
         inputs = torch.randn(state.unsqueeze(0).shape)
         cx = torch.randn(1, 256)
         hx = torch.randn(1, 256)
@@ -334,16 +320,30 @@ if __name__ == "__main__":
         top_grad_logit.append(torch.ones(logit.shape))
         top_grad_value.append(torch.ones(value.shape))
 
+    return top_grad_logit, top_grad_value, loss
 
-        #a = my_model.critic_linear.backward(torch.ones(my_value.shape))
-        #b = my_model.actor_linear.backward(torch.ones(my_logit.shape))
-        #my_inputs_grad, _, _ = my_model.lstm.backward(a+b, None)
-        
+if __name__ == "__main__":
+    from envs import create_atari_env
+    import model
+    print("-----------------test model forward-------------")
+    print("-------------many element ---------------")
+    env = create_atari_env("Riverraid-v0")
+    my_model = AcotrCritic(env.observation_space.shape[0], env.action_space)
+    model = model.ActorCritic(env.observation_space.shape[0], env.action_space)
+    state = env.reset()
+    state = torch.Tensor(state)
+
+    copy_weight(model,my_model)
+
+    
+    print("---- checkout model backward ----")
+    top_grad_logit, top_grad_value, loss = check_model_backward(model, my_model)
     loss.backward()
     my_model.backward(top_grad_value, top_grad_logit)
     check(model, my_model)
 
     '''
+
     print("---- checkout loss backward ----")
     values = []
     log_probs = []
