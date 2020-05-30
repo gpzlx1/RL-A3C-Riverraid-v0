@@ -145,13 +145,14 @@ class AcotrCritic(object):
         grad_actor_liner = self.actor_linear.backward(top_grad_logit)
         
 
-        top_grad_lstm = []
+        top_grad_h = []
         
         for  i in range(len(grad_critic_linear)):
-            top_grad_lstm.append(grad_critic_linear[i] + grad_actor_liner[i])
+            top_grad_h.append(grad_critic_linear[i] + grad_actor_liner[i])
         
+        top_grad_c = [0] * len(grad_critic_linear)
 
-        top_grad_conv4 = self.lstm.backward(top_grad_lstm, None)
+        top_grad_conv4, _, _ = self.lstm.backward(top_grad_h, top_grad_c)
 
         top_grad_conv4 = [ element.view(-1, 32, 3, 3) for element in top_grad_conv4 ]
 
@@ -367,7 +368,7 @@ if __name__ == "__main__":
     episode_length = 0
     my_values = []
     my_logits = []
-    for step in range(1000):
+    for step in range(500):
         episode_length += 1
         my_value, my_logit, (my_hx, my_cx) = my_model.forward((state.unsqueeze(0),
                                             (my_hx, my_cx)))
@@ -375,6 +376,7 @@ if __name__ == "__main__":
         my_logits.append(my_logit)
         value, logit, (hx, cx) = model((state.unsqueeze(0),
                                             (hx, cx)))
+ 
         prob = F.softmax(logit, dim=-1)
         log_prob = F.log_softmax(logit, dim=-1)
         entropy = -(log_prob * prob).sum(1, keepdim=True)
@@ -443,3 +445,4 @@ if __name__ == "__main__":
     for i in range(len(values)):
         temp = temp + torch.max(torch.abs(values[i] - my_values[i]))
     print(temp)
+    print(my_model.conv1.grad_weight[0])
