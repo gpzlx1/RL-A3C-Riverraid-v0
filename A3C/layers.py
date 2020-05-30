@@ -25,17 +25,17 @@ class Conv2d(Layer):
         self.dilation = (dilation,dilation)
    
         if bias:
-            self.bias = torch.zeros(out_channels)
+            self.bias = torch.zeros(self.out_channels)
         else:
             self.bias = None
         
         #grad
-        self.grad_bias = torch.zeros(out_channels)
+        self.grad_bias = torch.zeros(self.out_channels)
         self.grad_weight = torch.zeros(self.out_channels,self.in_channels // self.groups, *self.kernel_size)
         self.input = []
 
     def clear_grad(self):
-        self.grad_bias = torch.zeros(out_channels)
+        self.grad_bias = torch.zeros(self.out_channels)
         self.grad_weight = torch.zeros(self.out_channels,self.in_channels // self.groups, *self.kernel_size)
         self.input.clear()
 
@@ -96,12 +96,12 @@ class Linear(Layer):
             self.bias = None
 
         #grad
-        self.grad_bias = torch.zeros(out_size)
+        self.grad_bias = torch.zeros(self.out_size)
         self.grad_weight = torch.zeros(self.out_size,self.in_size)
         self.input = []
 
     def clear_grad(self):
-        self.grad_bias = torch.zeros(out_size)
+        self.grad_bias = torch.zeros(self.out_size)
         self.grad_weight = torch.zeros(self.out_size,self.in_size)
         self.input.clear()
 
