@@ -184,13 +184,12 @@ class AcotrCritic(object):
 
 
 def eval(value1, value2):
-    value1 = sum(value1)
     if value1.shape != value2.shape:
         print("error")
         return 
     
-    print(torch.max(torch.abs((value1  + 1)/(value2 + 1))),torch.min(torch.abs((value1  + 1)/(value2 + 1))),torch.mean(torch.abs((value1  + 1)/(value2 + 1))))
-    print()
+    print(torch.max(torch.abs((value1)/(value2))),torch.min(torch.abs((value1)/(value2))),torch.mean(torch.abs(torch.abs(value1.div(value2)) - 1)))
+
 
 
 
@@ -445,4 +444,4 @@ if __name__ == "__main__":
     for i in range(len(values)):
         temp = temp + torch.max(torch.abs(values[i] - my_values[i]))
     print(temp)
-    print(my_model.conv1.grad_weight[0])
+
