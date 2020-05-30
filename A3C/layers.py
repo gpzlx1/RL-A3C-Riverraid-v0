@@ -199,8 +199,8 @@ class LSTMCell(Layer):
         self.cellgate.append(cellgate)
         self.outgate.append(outgate)
 
-        cy = (forgetgate * cx) + (ingate * cellgate)
-        hy = outgate * torch.tanh(cy)
+        cy = forgetgate.mul(cx).add(ingate.mul(cellgate))
+        hy = outgate.mul(torch.tanh(cy))
 
         self.cy.append(cy)
         self.hy.append(hy)
@@ -212,17 +212,17 @@ class LSTMCell(Layer):
         bottom_grad_h = []
         bottom_grad_c = []
         for i in range(len(top_grad_h)):
-            grad_outgate =  torch.tanh(self.cy[i]) * top_grad_h[i]
-            grad_c = (1 - (torch.tanh(self.cy[i]))**2) * self.outgate[i] * top_grad_h[i]
+            grad_outgate =  torch.tanh(self.cy[i]).mul(top_grad_h[i])
+            grad_c = (1 - (torch.tanh(self.cy[i]))**2).mul(self.outgate[i]).mul(top_grad_h[i])
 
-            grad_forgetgate = self.cx[i] * grad_c
-            grad_ingate = self.cellgate[i] * grad_c
-            grad_cellgate = self.ingate[i] * grad_c
+            grad_forgetgate = self.cx[i].mul(grad_c)
+            grad_ingate = self.cellgate[i].mul(grad_c)
+            grad_cellgate = self.ingate[i].mul(grad_c)
 
-            df_input = self.forgetgate[i] * (1 - self.forgetgate[i]) * grad_forgetgate
-            di_input = self.ingate[i]  * (1 - self.ingate[i]) * grad_ingate
-            dg_input = (1 - (self.cellgate[i])**2) * grad_cellgate
-            do_input = self.outgate[i]  * (1 - self.outgate[i]) * grad_outgate
+            df_input = self.forgetgate[i].mul(1 - self.forgetgate[i]).mul(grad_forgetgate)
+            di_input = self.ingate[i].mul(1 - self.ingate[i]).mul(grad_ingate)
+            dg_input = (1 - (self.cellgate[i])**2).mul(grad_cellgate)
+            do_input = self.outgate[i].mul(1 - self.outgate[i]).mul(grad_outgate)
 
             grad_Wif = df_input.t().matmul(self.pre_inputs[i])
             grad_Whf = df_input.t().matmul(self.hx[i])
@@ -248,12 +248,12 @@ class LSTMCell(Layer):
             bottom_grad_c.append( self.forgetgate[i].mul(grad_c) )
 
             param_hi, param_hf, param_hg, param_ho = self.weight_hh.chunk(4,0)
-            bottom_grad_h.append( di_input.matmul(param_hi) + df_input.matmul(param_hf) +\
-                    dg_input.matmul(param_hg) + do_input.matmul(param_ho) )
+            bottom_grad_h.append( di_input.matmul(param_hi).add(df_input.matmul(param_hf)).add(\
+                    dg_input.matmul(param_hg)).add( do_input.matmul(param_ho) ) )
 
             param_ii, param_if, param_ig, param_io = self.weight_ih.chunk(4,0)
-            bottom_grad_inputs.append( di_input.matmul(param_ii) + df_input.matmul(param_if) +\
-                    dg_input.matmul(param_ig) + do_input.matmul(param_io) )
+            bottom_grad_inputs.append( di_input.matmul(param_ii).add(df_input.matmul(param_if)).add( \
+                    dg_input.matmul(param_ig)).add(do_input.matmul(param_io)) )
 
         return bottom_grad_inputs, bottom_grad_h, bottom_grad_c
 
