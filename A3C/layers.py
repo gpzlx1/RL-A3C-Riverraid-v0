@@ -229,7 +229,7 @@ class LSTMCell(Layer):
     def backward(self, top_grad_h, top_grad_c):
         bottom_grad_inputs = []
         for i in range(len(top_grad_h)):
-            grad_outgate =  torch.tanh(self.cy[i]).mul(top_grad_h[i])
+            grad_outgate = torch.tanh(self.cy[i]).mul(top_grad_h[i])
             temp = torch.tanh(self.cy[i])
             grad_c = (1 - temp.mul(temp)).mul(self.outgate[i]).mul(top_grad_h[i])
 
@@ -246,12 +246,10 @@ class LSTMCell(Layer):
             grad_weight_ih = d_ifgo.t().matmul(self.pre_inputs[i])
             grad_weight_hh = d_ifgo.t().matmul(self.hx[i])
            
-
             self.grad_weight_ih.append(grad_weight_ih)
             self.grad_weight_hh.append(grad_weight_hh)
             self.grad_bias_hh.append(d_ifgo.squeeze(0))
             self.grad_bias_ih = self.grad_bias_hh
-
 
             param_ii, param_if, param_ig, param_io = self.weight_ih.chunk(4,0)
             bottom_grad_inputs.append( di_input.matmul(param_ii).add(df_input.matmul(param_if)).add( \
@@ -314,7 +312,7 @@ if __name__ == "__main__":
     loss = 0
     top_grad_lstm = []
 
-    for i in range(1000):
+    for i in range(100):
         cx = torch.randn((1, 256))
         hx = torch.randn((1, 256))
         inputs = torch.randn(1,32*3*3)
