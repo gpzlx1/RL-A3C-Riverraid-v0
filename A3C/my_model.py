@@ -367,7 +367,7 @@ if __name__ == "__main__":
     episode_length = 0
     my_values = []
     my_logits = []
-    for step in range(args.num_steps):
+    for step in range(1000):
         episode_length += 1
         my_value, my_logit, (my_hx, my_cx) = my_model.forward((state.unsqueeze(0),
                                             (my_hx, my_cx)))
@@ -395,6 +395,7 @@ if __name__ == "__main__":
         if done:
             episode_length = 0
             state = env.reset()
+            done = False
 
         state = torch.from_numpy(state)
         values.append(value)
@@ -433,5 +434,12 @@ if __name__ == "__main__":
     top_grad_value, top_grad_logit = grad_loss(my_values, my_logits, rewards, actions, args)
     my_model.backward(top_grad_value, top_grad_logit)
     check(model, my_model)
-    print(rewards)
-  
+    temp = 0
+    for i in range(len(values)):
+        temp = temp + abs(values[i] - my_values[i])
+    print(temp)
+
+    temp = 0
+    for i in range(len(values)):
+        temp = temp + torch.max(torch.abs(values[i] - my_values[i]))
+    print(temp)
