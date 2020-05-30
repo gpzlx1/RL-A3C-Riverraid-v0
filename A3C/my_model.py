@@ -329,13 +329,16 @@ if __name__ == "__main__":
     print("-------------many element ---------------")
     env = create_atari_env("Riverraid-v0")
     my_model = AcotrCritic(env.observation_space.shape[0], env.action_space)
+    my_model.clear_grad()
+
     model = model.ActorCritic(env.observation_space.shape[0], env.action_space)
+    model.train()
     state = env.reset()
     state = torch.Tensor(state)
 
     copy_weight(model,my_model)
 
-    
+    '''
     print("---- checkout model backward ----")
     top_grad_logit, top_grad_value, loss = check_model_backward(model, my_model)
     loss.backward()
@@ -352,12 +355,25 @@ if __name__ == "__main__":
     logits = []
     actions = []
 
-    for step in range(5):
-        value = torch.randn(1,1)
-        value.requires_grad = True
-        logit = torch.randn(1,18)
-        logit.requires_grad = True
-        logits.append(logit)
+    from main import config
+    args = config()
+    
+    done = False
+    cx = torch.zeros(1, 256)
+    hx = torch.zeros(1, 256)
+    my_hx = hx
+    my_cx = cx
+    episode_length = 0
+    my_values = []
+    my_logits = []
+    for step in range(args.num_steps):
+        episode_length += 1
+        my_value, my_logit, (my_hx, my_cx) = my_model.forward((state.unsqueeze(0),
+                                            (my_hx, my_cx)))
+        my_values.append(my_value)
+        my_logits.append(my_logit)
+        value, logit, (hx, cx) = model((state.unsqueeze(0),
+                                            (hx, cx)))
         prob = F.softmax(logit, dim=-1)
         log_prob = F.log_softmax(logit, dim=-1)
         entropy = -(log_prob * prob).sum(1, keepdim=True)
@@ -366,40 +382,51 @@ if __name__ == "__main__":
         action = prob.multinomial(num_samples=1).detach()
         actions.append(action)
         log_prob = log_prob.gather(1, action)
-        #log_prob.backward()
-        reward = step*0.01
+        
+        state, reward, done, _ = env.step(action.numpy())
+        done = done or episode_length >= args.max_episode_length
+        reward = max(min(reward, 1), -1)
 
+
+        if done:
+            episode_length = 0
+            state = env.reset()
+
+        state = torch.from_numpy(state)
         values.append(value)
         log_probs.append(log_prob)
         rewards.append(reward)
 
+
+        if done:
+            break
+
     R = torch.zeros(1, 1)
-#    if not done:
-#        value, _, _ = model((state.unsqueeze(0), (hx, cx)))
-#        R = value.detach()
-    from main import config
-    params = config()
-    gamma = params.gamma
-    gae_lambda = params.gae_lambda
-    entropy_coef = params.entropy_coef
-    value_loss_coef = params.value_loss_coef
+    if not done:
+        value, _, _ = model((state.unsqueeze(0), (hx, cx)))
+        R = value.detach()
+    
+
     values.append(R)
+    my_values.append(R)
     policy_loss = 0
     value_loss = 0
     gae = torch.zeros(1, 1)
     for i in reversed(range(len(rewards))):
-        R = gamma * R + rewards[i]
+        R = args.gamma * R + rewards[i]
         advantage = R - values[i]
         value_loss = value_loss + 0.5 * advantage.pow(2)
 
         # Generalized Advantage Estimation
-        delta_t = rewards[i] + gamma * \
+        delta_t = rewards[i] + args.gamma * \
                   values[i + 1] - values[i]
-        gae = gae * gamma * gae_lambda + delta_t
+        gae = gae * args.gamma * args.gae_lambda + delta_t
 
         policy_loss = policy_loss - \
-                      log_probs[i] * gae.detach() - entropy_coef * entropies[i]
+                      log_probs[i] * gae.detach() - args.entropy_coef * entropies[i]
 
-    (policy_loss + value_loss_coef * value_loss).backward()
-    top_grad_value,top_grad_logit = grad_loss(values,logits,rewards,actions,params)
-    '''
+    (policy_loss + args.value_loss_coef * value_loss).backward()
+    top_grad_value, top_grad_logit = grad_loss(my_values, my_logits, rewards, actions, args)
+    my_model.backward(top_grad_value, top_grad_logit)
+    check(model, my_model)
+  
