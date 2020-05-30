@@ -10,6 +10,43 @@ def grad_elu(grad_y, x):
     bottom_grad = torch.where(x > 0, zero, x)
     return (bottom_grad + 1) * grad_y
 
+def grad_loss(values,logits,rewards,actions,params):
+    R = torch.zeros(1, 1)
+    gae = torch.zeros(1, 1)
+    grad_value = torch.zeros(1,1)
+    for i in reversed(range(len(rewards))):
+        #grad_value
+        R = params.gamma * R + rewards[i]
+        grad_value += params.value_loss_coef*(values[i] - R)    #value累和
+
+        #grad_logit
+        delta_t = rewards[i] + params.gamma * \
+                  values[i + 1] - values[i]
+        gae = gae * params.gamma * params.gae_lambda + delta_t
+        grad_log_probs = -gae.detach()
+        grad_entropies = params.entropy_coef
+        prob = F.softmax(logits[i], dim=-1)
+        log_prob = F.log_softmax(logits[i], dim=-1)
+        grad_logits_log = torch.zeros(logits[i].shape)
+        grad_logits_ent = torch.zeros(logits[i].shape)
+        grad_logits = torch.zeros(logits[i].shape)
+        #grad_entropies
+        for j in range(logits[i].shape[1]):
+            for k in range(logits[i].shape[1]):
+                if k == j:
+                    grad_logits_ent[0][j] +=  (1 + log_prob[0][k]) * prob[0][j]*(1-prob[0][j])
+                else:
+                    grad_logits_ent[0][j] +=  (1 + log_prob[0][k]) * prob[0][k]*(-prob[0][j])
+        grad_logits_ent = torch.mul(grad_entropies,grad_logits_ent)
+        # grad_log_prob
+        for j in range(logits[i].shape[1]):
+            if actions[i] == j:
+                grad_logits_log[0][j] += grad_log_probs[0][0]*(1-prob[0][j])
+            else:
+                grad_logits_log[0][j] += -grad_log_probs[0][0]*prob[0][j]
+        grad_logits = torch.add(torch.add(grad_logits_log,grad_logits_ent),grad_logits)
+    return grad_value,grad_logits
+
 
 class AcotrCritic(object):
     def __init__(self, num_inputs, action_space):
@@ -384,5 +421,62 @@ if __name__ == "__main__":
     eval(my_inputs_grad, inputs.grad)
     '''
 
+    print("---- checkout loss backward ----")
+    values = []
+    log_probs = []
+    rewards = []
+    entropies = []
+    logits = []
+    actions = []
 
+    for step in range(5):
+        value = torch.randn(1,1)
+        value.requires_grad = True
+        logit = torch.randn(1,18)
+        logit.requires_grad = True
+        logits.append(logit)
+        prob = F.softmax(logit, dim=-1)
+        log_prob = F.log_softmax(logit, dim=-1)
+        entropy = -(log_prob * prob).sum(1, keepdim=True)
+        entropies.append(entropy)
+
+        action = prob.multinomial(num_samples=1).detach()
+        actions.append(action)
+        log_prob = log_prob.gather(1, action)
+        #log_prob.backward()
+        reward = step*0.01
+
+        values.append(value)
+        log_probs.append(log_prob)
+        rewards.append(reward)
+
+    R = torch.zeros(1, 1)
+#    if not done:
+#        value, _, _ = model((state.unsqueeze(0), (hx, cx)))
+#        R = value.detach()
+    from main import config
+    params = config()
+    gamma = params.gamma
+    gae_lambda = params.gae_lambda
+    entropy_coef = params.entropy_coef
+    value_loss_coef = params.value_loss_coef
+    values.append(R)
+    policy_loss = 0
+    value_loss = 0
+    gae = torch.zeros(1, 1)
+    for i in reversed(range(len(rewards))):
+        R = gamma * R + rewards[i]
+        advantage = R - values[i]
+        value_loss = value_loss + 0.5 * advantage.pow(2)
+
+        # Generalized Advantage Estimation
+        delta_t = rewards[i] + gamma * \
+                  values[i + 1] - values[i]
+        gae = gae * gamma * gae_lambda + delta_t
+
+        policy_loss = policy_loss - \
+                      log_probs[i] * gae.detach() - entropy_coef * entropies[i]
+
+    (policy_loss + value_loss_coef * value_loss).backward()
+    top_grad_value,top_grad_logit = grad_loss(values,logits,rewards,actions,params)
 
