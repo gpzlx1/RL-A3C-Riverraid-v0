@@ -311,16 +311,18 @@ def model_backward(model, my_model):
     hx = torch.randn(1, 256)
     my_cx = cx
     my_hx = hx
-    for i in range(1000):
+    for i in range(500):
         inputs = torch.randn(state.unsqueeze(0).shape)
         
         my_value, my_logit, (my_hx, my_cx) = my_model.forward((inputs, (my_hx, my_cx)))
         value, logit, (hx, cx) = model((inputs, (hx, cx)))
 
-        loss =  value + logit.sum() + loss
+        grad_logit = torch.randn(logit.shape)
+        grad_value = torch.randn(value.shape)
+        loss =  (grad_value * value) +  (grad_logit * logit).sum() + loss
         
-        top_grad_logit.append(torch.ones(logit.shape))
-        top_grad_value.append(torch.ones(value.shape))
+        top_grad_logit.append(grad_logit)
+        top_grad_value.append(grad_value)
 
     return top_grad_logit, top_grad_value, loss
 
