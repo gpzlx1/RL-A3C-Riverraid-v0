@@ -188,7 +188,7 @@ def eval(value1, value2):
         print("error")
         return 
     
-    print(torch.max(torch.abs((value1 + 1e-6)/(value2 + 1e-6))),torch.min(torch.abs((value1 + 1e-6)/(value2 + 1e-6))),torch.mean(torch.abs(torch.abs((value1 + 1e-6).div(value2 + 1e-6)) - 1)))
+    print(torch.max(((value1 + 1e-6)/(value2 + 1e-6))),torch.min(((value1 + 1e-6)/(value2 + 1e-6))),torch.mean(torch.abs(((value1 + 1e-6).div(value2 + 1e-6)) - 1)))
 
 
 
