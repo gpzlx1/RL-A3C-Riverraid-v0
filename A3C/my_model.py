@@ -1,4 +1,4 @@
-import numpy as np 
+import numpy as np
 import torch
 import torch.nn.functional as F
 import layers
@@ -13,17 +13,17 @@ def grad_elu(grad_y, x):
         bottom_grad_list.append(bottom_grad.add(1).mul(grad_y[i]))
     return bottom_grad_list
 
-def grad_loss(values,logits,rewards,actions,params):
-    R = torch.zeros(1, 1)
+
+def grad_loss(values, logits, rewards, actions, params,R):
     grad_value = []
     gae = torch.zeros(1, 1)
     grad_logits = []
     for i in reversed(range(len(rewards))):
-        #grad_value
+        # grad_value
         R = params.gamma * R + rewards[i]
-        grad_value.append(params.value_loss_coef*(values[i] - R))    #value累和
+        grad_value.append(params.value_loss_coef * (values[i] - R))  # value累和
 
-        #grad_logit
+        # grad_logit
         delta_t = rewards[i] + params.gamma * \
                   values[i + 1] - values[i]
         gae = gae * params.gamma * params.gae_lambda + delta_t
@@ -33,21 +33,21 @@ def grad_loss(values,logits,rewards,actions,params):
         log_prob = F.log_softmax(logits[i], dim=-1)
         grad_logits_log = torch.zeros(logits[i].shape)
         grad_logits_ent = torch.zeros(logits[i].shape)
-        #grad_entropies
+        # grad_entropies
         for j in range(logits[i].shape[1]):
             for k in range(logits[i].shape[1]):
                 if k == j:
-                    grad_logits_ent[0][j] +=  (1 + log_prob[0][k]) * prob[0][j]*(1-prob[0][j])
+                    grad_logits_ent[0][j] += (1 + log_prob[0][k]) * prob[0][j] * (1 - prob[0][j])
                 else:
-                    grad_logits_ent[0][j] +=  (1 + log_prob[0][k]) * prob[0][k]*(-prob[0][j])
-        grad_logits_ent = torch.mul(grad_entropies,grad_logits_ent)
+                    grad_logits_ent[0][j] += (1 + log_prob[0][k]) * prob[0][k] * (-prob[0][j])
+        grad_logits_ent = torch.mul(grad_entropies, grad_logits_ent)
         # grad_log_prob
         for j in range(logits[i].shape[1]):
             if actions[i] == j:
-                grad_logits_log[0][j] += grad_log_probs[0][0]*(1-prob[0][j])
+                grad_logits_log[0][j] += grad_log_probs[0][0] * (1 - prob[0][j])
             else:
-                grad_logits_log[0][j] += -grad_log_probs[0][0]*prob[0][j]
-        grad_logits.append(torch.add(grad_logits_log,grad_logits_ent))
+                grad_logits_log[0][j] += -grad_log_probs[0][0] * prob[0][j]
+        grad_logits.append(torch.add(grad_logits_log, grad_logits_ent))
     return grad_value[::-1], grad_logits[::-1]
 
 
@@ -64,7 +64,7 @@ class AcotrCritic(object):
         self.critic_linear = layers.Linear(256, 1)
         self.actor_linear = layers.Linear(256, num_outputs)
 
-        #initial paramater
+        # initial paramater
         self.conv1.init_weight(random=True)
         self.conv1.init_bias(random=False)
         self.conv2.init_weight(random=True)
@@ -74,7 +74,6 @@ class AcotrCritic(object):
         self.conv4.init_weight(random=True)
         self.conv4.init_bias(random=False)
 
-
         self.critic_linear.init_weight(random=True)
         self.critic_linear.init_bias(random=False)
         self.actor_linear.init_weight(random=True)
@@ -82,8 +81,8 @@ class AcotrCritic(object):
 
         self.lstm.init_weight(random=True)
         self.lstm.init_bias(random=False)
-        
-        #grad
+
+        # grad
         self.y1 = []
         self.y2 = []
         self.y3 = []
@@ -94,43 +93,37 @@ class AcotrCritic(object):
         self.y2.clear()
         self.y3.clear()
         self.y4.clear()
-        
+
         self.conv1.clear_grad()
         self.conv2.clear_grad()
         self.conv3.clear_grad()
         self.conv4.clear_grad()
 
         self.lstm.clear_grad()
-        
+
         self.actor_linear.clear_grad()
         self.critic_linear.clear_grad()
-
-
 
     def forward(self, inputs):
         inputs, (hx, cx) = inputs
 
         x = F.elu(self.conv1.forward(inputs))
         self.y1.append(x)
-        
-        
+
         x = F.elu(self.conv2.forward(x))
         self.y2.append(x)
-        
 
         x = F.elu(self.conv3.forward(x))
         self.y3.append(x)
-        
 
         x = F.elu(self.conv4.forward(x))
         self.y4.append(x)
-        
 
         # x.shape = 1, 32, 3, 3
         x = x.view(-1, 32 * 3 * 3)
         # x.shape = 1, 288
 
-        hx, cx = self.lstm.forward(x, (hx,cx))
+        hx, cx = self.lstm.forward(x, (hx, cx))
         x = hx
 
         return self.critic_linear.forward(x), self.actor_linear.forward(x), (hx, cx)
@@ -143,18 +136,17 @@ class AcotrCritic(object):
 
         grad_critic_linear = self.critic_linear.backward(top_grad_value)
         grad_actor_liner = self.actor_linear.backward(top_grad_logit)
-        
 
         top_grad_h = []
-        
-        for  i in range(len(grad_critic_linear)):
+
+        for i in range(len(grad_critic_linear)):
             top_grad_h.append(grad_critic_linear[i] + grad_actor_liner[i])
-        
+
         top_grad_c = [0] * len(grad_critic_linear)
 
         top_grad_conv4, _, _ = self.lstm.backward(top_grad_h, top_grad_c)
 
-        top_grad_conv4 = [ element.view(-1, 32, 3, 3) for element in top_grad_conv4 ]
+        top_grad_conv4 = [element.view(-1, 32, 3, 3) for element in top_grad_conv4]
 
         top_grad_conv4 = grad_elu(top_grad_conv4, self.y4)
         top_grad_conv3 = self.conv4.backward(top_grad_conv4)
@@ -167,10 +159,8 @@ class AcotrCritic(object):
 
         top_grad_conv1 = grad_elu(top_grad_conv1, self.y1)
         grad_inputs = self.conv1.backward(top_grad_conv1)
-        
+
         return grad_inputs
-
-
 
     def save_model(self):
         raise NotImplementedError
@@ -182,15 +172,13 @@ class AcotrCritic(object):
         raise NotImplementedError
 
 
-
 def eval(value1, value2):
     if value1.shape != value2.shape:
         print("error")
-        return 
-    
-    print(torch.max(((value1 + 1e-8)/(value2 + 1e-8))),torch.min(((value1 + 1e-8)/(value2 + 1e-8))),torch.mean(torch.abs(((value1 + 1e-8).div(value2 + 1e-8)) - 1)))
+        return
 
-
+    print(torch.max(((value1 + 1e-8) / (value2 + 1e-8))), torch.min(((value1 + 1e-8) / (value2 + 1e-8))),
+          torch.mean(torch.abs(((value1 + 1e-8).div(value2 + 1e-8)) - 1)))
 
 
 def copy_weight(model, my_model):
@@ -201,39 +189,37 @@ def copy_weight(model, my_model):
         print("error")
 
     if my_model.conv2.weight.shape == model.conv2.weight.shape:
-            my_model.conv2.weight = model.conv2.weight.data
+        my_model.conv2.weight = model.conv2.weight.data
     else:
         print("error")
 
     if my_model.conv3.weight.shape == model.conv3.weight.shape:
-            my_model.conv3.weight = model.conv3.weight.data
+        my_model.conv3.weight = model.conv3.weight.data
     else:
         print("error")
-    
+
     if my_model.conv4.weight.shape == model.conv4.weight.shape:
-            my_model.conv4.weight = model.conv4.weight.data
+        my_model.conv4.weight = model.conv4.weight.data
     else:
         print("error")
-
-
 
     if my_model.conv1.bias.shape == model.conv1.bias.shape:
-            my_model.conv1.bias = model.conv1.bias.data
+        my_model.conv1.bias = model.conv1.bias.data
     else:
         print("error")
 
     if my_model.conv2.bias.shape == model.conv2.bias.shape:
-            my_model.conv2.bias = model.conv2.bias.data
+        my_model.conv2.bias = model.conv2.bias.data
     else:
         print("error")
-        
+
     if my_model.conv3.bias.shape == model.conv3.bias.shape:
-            my_model.conv3.bias = model.conv3.bias.data
+        my_model.conv3.bias = model.conv3.bias.data
     else:
         print("error")
 
     if my_model.conv4.bias.shape == model.conv4.bias.shape:
-            my_model.conv4.bias = model.conv4.bias.data
+        my_model.conv4.bias = model.conv4.bias.data
     else:
         print("error")
 
@@ -258,7 +244,7 @@ def copy_weight(model, my_model):
         my_model.actor_linear.bias = model.actor_linear.bias.data
     else:
         print("error")
-    
+
     print("-- lstm --")
     if my_model.lstm.weight_hh.shape == model.lstm.weight_hh.shape and my_model.lstm.weight_ih.shape == model.lstm.weight_ih.shape:
         my_model.lstm.weight_hh = model.lstm.weight_hh.data
@@ -271,6 +257,7 @@ def copy_weight(model, my_model):
         my_model.lstm.bias_hh = model.lstm.bias_hh.data
     else:
         print("error")
+
 
 def check(model, my_model):
     print("--- linear")
@@ -299,7 +286,7 @@ def check(model, my_model):
     eval(my_model.conv1.grad_bias, model.conv1.bias.grad)
 
     print("--- input")
-    #eval(grad_inputs, inputs.grad)
+    # eval(grad_inputs, inputs.grad)
 
 
 def model_backward(model, my_model):
@@ -313,23 +300,25 @@ def model_backward(model, my_model):
     my_hx = hx
     for i in range(100):
         inputs = torch.randn(state.unsqueeze(0).shape)
-        
+
         my_value, my_logit, (my_hx, my_cx) = my_model.forward((inputs, (my_hx, my_cx)))
         value, logit, (hx, cx) = model((inputs, (hx, cx)))
 
         grad_logit = torch.randn(logit.shape)
         grad_value = torch.randn(value.shape)
-        loss =  (grad_value * value) +  (grad_logit * logit).sum() + loss
-        
+        loss = (grad_value * value) + (grad_logit * logit).sum() + loss
+
         top_grad_logit.append(grad_logit)
         top_grad_value.append(grad_value)
 
     return top_grad_logit, top_grad_value, loss
 
+
 if __name__ == "__main__":
-    import random 
+    import random
     from envs import create_atari_env
     import model
+
     print("-----------------test model forward-------------")
     print("-------------many element ---------------")
     env = create_atari_env("Riverraid-v0")
@@ -341,16 +330,15 @@ if __name__ == "__main__":
     state = env.reset()
     state = torch.Tensor(state)
 
-    copy_weight(model,my_model)
+    copy_weight(model, my_model)
 
-    
     print("---- checkout model backward ----")
-    top_grad_logit, top_grad_value, loss = model_backward(model, my_model)
-    loss.backward()
-    my_model.backward(top_grad_value, top_grad_logit)
-    check(model, my_model)
+#    top_grad_logit, top_grad_value, loss = model_backward(model, my_model)
+#    loss.backward()
+#    my_model.backward(top_grad_value, top_grad_logit)
+#    check(model, my_model)
 
-    '''
+
 
     print("---- checkout loss backward ----")
     values = []
@@ -362,7 +350,7 @@ if __name__ == "__main__":
 
     from main import config
     args = config()
-    
+
     done = False
     cx = torch.zeros(1, 256)
     hx = torch.zeros(1, 256)
@@ -379,7 +367,11 @@ if __name__ == "__main__":
         my_logits.append(my_logit)
         value, logit, (hx, cx) = model((state.unsqueeze(0),
                                             (hx, cx)))
- 
+#        value = my_value.clone().detach()
+#        value.requires_grad = True
+#        logit = my_logit.clone().detach()
+#        logit.requires_grad = True
+
         prob = F.softmax(logit, dim=-1)
         log_prob = F.log_softmax(logit, dim=-1)
         entropy = -(log_prob * prob).sum(1, keepdim=True)
@@ -388,9 +380,9 @@ if __name__ == "__main__":
         action = prob.multinomial(num_samples=1).detach()
         actions.append(action)
         log_prob = log_prob.gather(1, action)
-        
+
         state, reward, done, _ = env.step(action.numpy())
-        
+
         reward = 20.0 if random.random() > 0.5 else 0.0
         print(reward)
         done = done or episode_length >= args.max_episode_length
@@ -412,10 +404,12 @@ if __name__ == "__main__":
             break
 
     R = torch.zeros(1, 1)
+
     if not done:
         value, _, _ = model((state.unsqueeze(0), (hx, cx)))
         R = value.detach()
-    
+
+    R_0 = R
 
     values.append(R)
     my_values.append(R)
@@ -436,7 +430,7 @@ if __name__ == "__main__":
                       log_probs[i] * gae.detach() - args.entropy_coef * entropies[i]
 
     (policy_loss + args.value_loss_coef * value_loss).backward()
-    top_grad_value, top_grad_logit = grad_loss(my_values, my_logits, rewards, actions, args)
+    top_grad_value, top_grad_logit = grad_loss(my_values, my_logits, rewards, actions, args,R_0)
     my_model.backward(top_grad_value, top_grad_logit)
     check(model, my_model)
     temp = 0
@@ -448,4 +442,4 @@ if __name__ == "__main__":
     for i in range(len(values)):
         temp = temp + torch.max(torch.abs(values[i] - my_values[i]))
     print(temp)
-    '''
+
