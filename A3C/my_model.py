@@ -359,7 +359,7 @@ if __name__ == "__main__":
     episode_length = 0
     my_values = []
     my_logits = []
-    for step in range(1):
+    for step in range(args.num_steps):
         episode_length += 1
         my_value, my_logit, (my_hx, my_cx) = my_model.forward((state.unsqueeze(0),
                                             (my_hx, my_cx)))
@@ -383,8 +383,6 @@ if __name__ == "__main__":
 
         state, reward, done, _ = env.step(action.numpy())
 
-        reward = 20.0 if random.random() > 0.5 else 0.0
-        print(reward)
         done = done or episode_length >= args.max_episode_length
         reward = max(min(reward, 1), -1)
 
@@ -392,7 +390,7 @@ if __name__ == "__main__":
         if done:
             episode_length = 0
             state = env.reset()
-            done = False
+            
 
         state = torch.from_numpy(state)
         values.append(value)
