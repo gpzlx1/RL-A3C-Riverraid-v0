@@ -188,7 +188,7 @@ def eval(value1, value2):
         print("error")
         return 
     
-    print(torch.max(torch.abs((value1 + 1e-5)/(value2 + 1e-5))),torch.min(torch.abs((value1 + 1e-5)/(value2 + 1e-5))),torch.mean(torch.abs(torch.abs((value1 + 1e-5).div(value2 + 1e-5)) - 1)))
+    print(torch.max(torch.abs((value1 + 1e-6)/(value2 + 1e-6))),torch.min(torch.abs((value1 + 1e-6)/(value2 + 1e-6))),torch.mean(torch.abs(torch.abs((value1 + 1e-6).div(value2 + 1e-6)) - 1)))
 
 
 
@@ -339,9 +339,9 @@ if __name__ == "__main__":
 
     copy_weight(model,my_model)
 
-    '''
+    
     print("---- checkout model backward ----")
-    top_grad_logit, top_grad_value, loss = check_model_backward(model, my_model)
+    top_grad_logit, top_grad_value, loss = model_backward(model, my_model)
     loss.backward()
     my_model.backward(top_grad_value, top_grad_logit)
     check(model, my_model)
@@ -367,7 +367,7 @@ if __name__ == "__main__":
     episode_length = 0
     my_values = []
     my_logits = []
-    for step in range(1000):
+    for step in range(1):
         episode_length += 1
         my_value, my_logit, (my_hx, my_cx) = my_model.forward((state.unsqueeze(0),
                                             (my_hx, my_cx)))
@@ -444,4 +444,4 @@ if __name__ == "__main__":
     for i in range(len(values)):
         temp = temp + torch.max(torch.abs(values[i] - my_values[i]))
     print(temp)
-
+    '''
