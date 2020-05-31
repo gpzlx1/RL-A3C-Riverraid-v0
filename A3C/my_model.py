@@ -84,16 +84,16 @@ class AcotrCritic(object):
         self.lstm.init_bias(random=False)
         
         #grad
-        self.x1 = []
-        self.x2 = []
-        self.x3 = []
-        self.x4 = []
+        self.y1 = []
+        self.y2 = []
+        self.y3 = []
+        self.y4 = []
 
     def clear_grad(self):
-        self.x1.clear()
-        self.x2.clear()
-        self.x3.clear()
-        self.x4.clear()
+        self.y1.clear()
+        self.y2.clear()
+        self.y3.clear()
+        self.y4.clear()
         
         self.conv1.clear_grad()
         self.conv2.clear_grad()
@@ -110,21 +110,21 @@ class AcotrCritic(object):
     def forward(self, inputs):
         inputs, (hx, cx) = inputs
 
-        x = self.conv1.forward(inputs)
-        self.x1.append(x)
-        x = F.elu(x)
+        x = F.elu(self.conv1.forward(inputs))
+        self.y1.append(x)
         
-        x = self.conv2.forward(x)
-        self.x2.append(x)
-        x = F.elu(x)
+        
+        x = F.elu(self.conv2.forward(x))
+        self.y2.append(x)
+        
 
-        x = self.conv3.forward(x)
-        self.x3.append(x)
-        x = F.elu(x)
+        x = F.elu(self.conv3.forward(x))
+        self.y3.append(x)
+        
 
-        x = self.conv4.forward(x)
-        self.x4.append(x)
-        x = F.elu(x)
+        x = F.elu(self.conv4.forward(x))
+        self.y4.append(x)
+        
 
         # x.shape = 1, 32, 3, 3
         x = x.view(-1, 32 * 3 * 3)
@@ -156,16 +156,16 @@ class AcotrCritic(object):
 
         top_grad_conv4 = [ element.view(-1, 32, 3, 3) for element in top_grad_conv4 ]
 
-        top_grad_conv4 = grad_elu(top_grad_conv4, self.x4)
+        top_grad_conv4 = grad_elu(top_grad_conv4, self.y4)
         top_grad_conv3 = self.conv4.backward(top_grad_conv4)
 
-        top_grad_conv3 = grad_elu(top_grad_conv3, self.x3)
+        top_grad_conv3 = grad_elu(top_grad_conv3, self.y3)
         top_grad_conv2 = self.conv3.backward(top_grad_conv3)
 
-        top_grad_conv2 = grad_elu(top_grad_conv2, self.x2)
+        top_grad_conv2 = grad_elu(top_grad_conv2, self.y2)
         top_grad_conv1 = self.conv2.backward(top_grad_conv2)
 
-        top_grad_conv1 = grad_elu(top_grad_conv1, self.x1)
+        top_grad_conv1 = grad_elu(top_grad_conv1, self.y1)
         grad_inputs = self.conv1.backward(top_grad_conv1)
         
         return grad_inputs
@@ -307,13 +307,15 @@ def model_backward(model, my_model):
     top_grad_value = []
     loss = 0
     my_model.clear_grad()
-    for i in range(50):
+    cx = torch.randn(1, 256)
+    hx = torch.randn(1, 256)
+    my_cx = cx
+    my_hx = hx
+    for i in range(1000):
         inputs = torch.randn(state.unsqueeze(0).shape)
-        cx = torch.randn(1, 256)
-        hx = torch.randn(1, 256)
-
-        my_value, my_logit, _ = my_model.forward((inputs, (hx, cx)))
-        value, logit, _ = model((inputs, (hx, cx)))
+        
+        my_value, my_logit, (my_hx, my_cx) = my_model.forward((inputs, (my_hx, my_cx)))
+        value, logit, (hx, cx) = model((inputs, (hx, cx)))
 
         loss =  value + logit.sum() + loss
         
