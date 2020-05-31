@@ -310,14 +310,7 @@ class LSTMTest(torch.nn.Module):
 if __name__ == "__main__":
 
 
-    
-    def eval(value1, value2):
-        if value1.shape != value2.shape:
-            print("error")
-            return 
-        
-        print(torch.max(torch.abs(value1 / value2)), torch.min(torch.abs(value1 / value2)), torch.mean(torch.abs(torch.abs(value1 / value2)-1)))
-        
+    from my_model import eval        
 
     print("begin ------------lstm---------------")
 
@@ -341,7 +334,7 @@ if __name__ == "__main__":
     mc = cx
     first_cx = cx
     first_hx = hx
-    for i in range(1000):
+    for i in range(100):
         inputs = torch.randn(1,32*3*3,requires_grad=True)
         mh,mc = LSTM.forward(inputs, (mh,mc))
         hx, cx = test1((inputs, (hx,cx)))
@@ -376,7 +369,7 @@ if __name__ == "__main__":
 
     loss = 0
     top_grad_conv = []
-    for i in range(1000):
+    for i in range(100):
         #conv_test
         input = torch.randn(32,6,6).unsqueeze(0)
 
@@ -403,7 +396,7 @@ if __name__ == "__main__":
 
     loss = 0
     top_grad_linear = []
-    for i in range(1000):
+    for i in range(100):
         input = torch.randn(1,256)
         weight = torch.randn(18,256)
 
