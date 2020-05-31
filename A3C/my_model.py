@@ -188,7 +188,7 @@ def eval(value1, value2):
         print("error")
         return 
     
-    print(torch.max(((value1 + 1e-6)/(value2 + 1e-6))),torch.min(((value1 + 1e-6)/(value2 + 1e-6))),torch.mean(torch.abs(((value1 + 1e-6).div(value2 + 1e-6)) - 1)))
+    print(torch.max(((value1 + 1e-8)/(value2 + 1e-8))),torch.min(((value1 + 1e-8)/(value2 + 1e-8))),torch.mean(torch.abs(((value1 + 1e-8).div(value2 + 1e-8)) - 1)))
 
 
 
@@ -311,7 +311,7 @@ def model_backward(model, my_model):
     hx = torch.randn(1, 256)
     my_cx = cx
     my_hx = hx
-    for i in range(500):
+    for i in range(100):
         inputs = torch.randn(state.unsqueeze(0).shape)
         
         my_value, my_logit, (my_hx, my_cx) = my_model.forward((inputs, (my_hx, my_cx)))
