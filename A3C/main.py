@@ -22,8 +22,9 @@ class config(object):
         self.seed = 1
         self.num_processes = 4
         self.num_steps = 20
-        self.max_episode_length = 1000000
+        self.max_step_length = 1000000
         self.env_name = 'Riverraid-v0'
+        self.model_path = './model/'
         self.no_shared = False
 
 

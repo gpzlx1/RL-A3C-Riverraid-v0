@@ -22,6 +22,7 @@ def test(rank, args, shared_model, counter, log_path):
     state = torch.Tensor(state)
     rewards = []
     reward_sum = 0
+    max_100_episode_reward = 0
     done = True
 
     start_time = time.time()
@@ -71,6 +72,10 @@ def test(rank, args, shared_model, counter, log_path):
                 actions.clear()
                 state = env.reset()
                 time.sleep(45)
+
+                if mean(reward_sum[-100:]) > max_100_episode_reward:
+                    max_100_episode_reward = mean(reward_sum[-100:])
+                    model.save_model(args.model_path + "_checkpoint_" + str(max_100_episode_reward))
 
             state = torch.Tensor(state)
 
