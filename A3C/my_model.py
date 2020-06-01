@@ -186,7 +186,17 @@ class AcotrCritic(object):
         yield self.actor_linear.weight
         yield self.actor_linear.bias
 
-        
+
+    def clip_grad(self,parameters, max_norm, norm_type=2):
+        parameters = list(filter(lambda p: p.grad is not None, parameters))
+        max_norm = float(max_norm)
+        norm_type = float(norm_type)
+        total_norm = torch.norm(torch.stack([torch.norm(p.grad.detach(), norm_type) for p in parameters]), norm_type)
+        clip_coef = max_norm / (total_norm + 1e-6)
+        if clip_coef < 1:
+            for p in parameters:
+                p.grad.detach().mul_(clip_coef)
+        return total_norm
 
         
 
@@ -372,6 +382,14 @@ def model_backward(model, my_model):
     return top_grad_logit, top_grad_value, loss
 
 
+def check_clip_grad(my_model,model,max_norm):
+    my_total_norm = my_model.clip_grad(my_model.parameters(),max_norm)
+    total_norm = torch.nn.utils.clip_grad_norm_(model.parameters(),max_norm)
+    check_grad(model,my_model)
+    print(my_total_norm,total_norm)
+    print('-----finish-----')
+
+
 if __name__ == "__main__":
     import random
     from envs import create_atari_env
@@ -448,10 +466,6 @@ if __name__ == "__main__":
         my_logits.append(my_logit)
         value, logit, (hx, cx) = model((state.unsqueeze(0),
                                             (hx, cx)))
-#        value = my_value.clone().detach()
-#        value.requires_grad = True
-#        logit = my_logit.clone().detach()
-#        logit.requires_grad = True
 
         prob = F.softmax(logit, dim=-1)
         log_prob = F.log_softmax(logit, dim=-1)
@@ -522,3 +536,5 @@ if __name__ == "__main__":
         temp = temp + torch.max(torch.abs(values[i] - my_values[i]))
     print(temp)
     
+    print('----------check clip_grad----------')
+    check_clip_grad(my_model,model,0.1)
