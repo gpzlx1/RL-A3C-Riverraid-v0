@@ -162,6 +162,35 @@ class AcotrCritic(object):
 
         return grad_inputs
 
+    def parameters(self):
+        yield self.conv1.weight
+        yield self.conv1.bias
+
+        yield self.conv2.weight
+        yield self.conv2.bias
+
+        yield self.conv3.weight
+        yield self.conv3.bias
+
+        yield self.conv4.weight
+        yield self.conv4.bias
+
+        yield self.lstm.weight_ih
+        yield self.lstm.weight_hh
+        yield self.lstm.bias_ih
+        yield self.lstm.bias_hh
+
+        yield self.critic_linear.weight
+        yield self.critic_linear.bias
+
+        yield self.actor_linear.weight
+        yield self.actor_linear.bias
+
+        
+
+        
+
+
     def save_model(self):
         raise NotImplementedError
 
