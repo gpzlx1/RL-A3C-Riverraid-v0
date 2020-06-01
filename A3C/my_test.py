@@ -7,6 +7,9 @@ import torch.nn.functional as F
 from envs import create_atari_env
 from my_model import AcotrCritic
 
+def mean(values):
+    return sum(values) / len(values)
+
 def test(rank, args, shared_model, counter, log_path):
 
     log_file = open(log_path + time.asctime(time.localtime()), "w")
@@ -16,7 +19,7 @@ def test(rank, args, shared_model, counter, log_path):
     env = create_atari_env(args.env_name)
     env.seed(args.seed + rank)
 
-    model = AcotrCritic(env.observation.shape[0], env.action_space)
+    model = AcotrCritic(env.observation_space.shape[0], env.action_space)
 
     state = env.reset()
     state = torch.Tensor(state)
