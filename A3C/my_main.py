@@ -33,12 +33,12 @@ if __name__ == '__main__':
     os.environ['CUDA_VISIBLE_DEVICES'] = ""
 
 
-    torch.manual_seed(params.seed)
-    env = create_atari_env(params.env_name)
+    torch.manual_seed(args.seed)
+    env = create_atari_env(args.env_name)
     shared_model = AcotrCritic(env.observation_space.shape[0], env.action_space)
     shared_model.share_memory()
 
-    optimizer = my_optim.SharedAdam(shared_model.parameters(), lr=params.lr)
+    optimizer = my_optim.SharedAdam(shared_model.parameters(), lr=args.lr)
     optimizer.share_memory()
 
     processes = []
@@ -46,11 +46,11 @@ if __name__ == '__main__':
     counter = mp.Value('i', 0)
     lock = mp.Lock()
 
-    p = mp.Process(target=test, args=(params.num_processes, args, shared_model, counter, args.model_path))
+    p = mp.Process(target=test, args=(args.num_processes, args, shared_model, counter, args.model_path))
     p.start()
     processes.append(p)
 
-    for rank in range(0, params.num_processes):
+    for rank in range(0, args.num_processes):
         p = mp.Process(target=train, args=(rank, args, shared_model, counter, lock, optimizer))
         p.start()
         processes.append(p)
