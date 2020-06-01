@@ -6,8 +6,8 @@ TD: to do
 1. LSTM, Conv2d, Linear: forward and backward (G, L, F, 05/27)
 2. model: forward and backward (G, F, 05/28)
 3. loss: backward (L, F, 05/31)
-4. optimize: SharedAdam (G, 06/01)
+4. optimize: SharedAdam (G, 06/02)
 5. grad_norm_clip (L, 06/01)
 5. multiprocess (TD)
 6. performance optimization (TD) : jit, pyc, c++
-7. report (TD, 06/18)
+7. report (TD, 06/18), latex, overleaf
