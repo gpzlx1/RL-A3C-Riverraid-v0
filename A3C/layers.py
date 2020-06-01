@@ -1,6 +1,7 @@
 import torch
 import numpy as np
 import torch.nn.functional as F
+from copy import deepcopy
 
 class Layer(object):
     def forward(self):
@@ -37,14 +38,11 @@ class Conv2d(Layer):
         self.grad_weight = torch.zeros(self.out_channels,self.in_channels // self.groups, *self.kernel_size)
         self.input = []
 
-    def clear_grad(self):
+    def clear_temp(self):
         self.grad_bias = torch.zeros(self.out_channels)
         self.grad_weight = torch.zeros(self.out_channels,self.in_channels // self.groups, *self.kernel_size)
         self.input.clear()
 
-        self.weight.grad = None
-        if self.bias is not None:
-            self.bias.grad = None
 
     def init_weight(self,random = True, loc=0.0, scale=1):
         if random:
@@ -120,15 +118,11 @@ class Linear(Layer):
         
 
 
-    def clear_grad(self):
+    def clear_temp(self):
         self.grad_bias = torch.zeros(self.out_size)
         self.grad_weight = torch.zeros(self.out_size,self.in_size)
         self.input.clear()
 
-        self.weight.grad = None
-
-        if self.bias is not None:
-            self.bias.grad = None
 
     def init_weight(self,random = True, loc=0.0, scale=1):
         if random:
@@ -300,7 +294,7 @@ class LSTMCell(Layer):
             self.grad_weight_ih = torch.add(self.grad_weight_ih, grad_weight_ih)
             self.grad_weight_hh = torch.add(self.grad_weight_hh, grad_weight_hh)
             self.grad_bias_hh = torch.add(self.grad_bias_hh, d_ifgo.squeeze(0))
-            self.grad_bias_ih = self.grad_bias_hh
+            self.grad_bias_ih = self.grad_bias_hh.clone()
 
             param_ii, param_if, param_ig, param_io = self.weight_ih.chunk(4,0)
             bottom_grad_inputs.append( di_input.matmul(param_ii).add(df_input.matmul(param_if)).add( \
@@ -327,7 +321,7 @@ class LSTMCell(Layer):
 
         return bottom_grad_inputs, bottom_grad_h_list, bottom_grad_c_list
 
-    def clear_grad(self):
+    def clear_temp(self):
                #中间变量
         self.pre_inputs.clear()
         self.ingate.clear()
@@ -345,10 +339,6 @@ class LSTMCell(Layer):
         self.grad_bias_ih = torch.zeros(self.bias_ih.shape)
         self.grad_bias_hh = torch.zeros(self.bias_hh.shape)
 
-        self.weight_hh.grad = None
-        self.weight_ih.grad = None
-        self.bias_hh.grad = None
-        self.bias_ih.grad = None
 
 class LSTMTest(torch.nn.Module):
     def __init__(self, input_size, hidden_size, bias=True):
@@ -375,7 +365,7 @@ if __name__ == "__main__":
     LSTM.weight_ih = test1.lstm.weight_ih.data
     LSTM.bias_hh = test1.lstm.bias_hh.data
     LSTM.bias_ih = test1.lstm.bias_ih.data
-    LSTM.clear_grad()
+    #LSTM.clear_temp()
 
     print("---many elements test -----")
     loss = 0
@@ -393,11 +383,13 @@ if __name__ == "__main__":
     first_hx = hx
 
     #warn up
+    print(LSTM.weight_hh.grad, LSTM.weight_ih.grad, LSTM.bias_hh.grad, LSTM.bias_ih.grad)
     inputs = torch.randn(1,32*3*3)
     _, _ = LSTM.forward(inputs, (mh,mc))
     LSTM.backward([torch.ones(mh.shape)], [torch.zeros(mc.shape)])
-    LSTM.clear_grad()
-    print(LSTM.weight_hh.grad, LSTM.weight_ih.grad, LSTM.bias_hh.grad, LSTM.bias_ih.grad)
+    #print(LSTM.weight_hh.grad, LSTM.weight_ih.grad, LSTM.bias_hh.grad, LSTM.bias_ih.grad)
+    LSTM.clear_temp()
+    #print(LSTM.weight_hh.grad, LSTM.weight_ih.grad, LSTM.bias_hh.grad, LSTM.bias_ih.grad)
 
     for i in range(100):
         inputs = torch.randn(1,32*3*3,requires_grad=True)
@@ -436,8 +428,8 @@ if __name__ == "__main__":
     result = conv_1.forward(input)
     conv_1.backward([torch.ones(result.shape)])
    
-    conv_1.clear_grad()
-    print(conv_1.weight.grad, conv_1.bias.grad)
+    conv_1.clear_temp()
+    #print(conv_1.weight.grad, conv_1.bias.grad)
     
     loss = 0
     top_grad_conv = []
@@ -470,8 +462,9 @@ if __name__ == "__main__":
     input = torch.randn(1,256)
     result = my_linear.forward(input)
     my_linear.backward([torch.ones(result.shape)])
-    my_linear.clear_grad()
-    print(my_linear.weight.grad, my_linear.bias.grad)
+    #print(my_linear.weight.grad, my_linear.bias.grad)
+    my_linear.clear_temp()
+    #print(my_linear.weight.grad, my_linear.bias.grad)
 
     loss = 0
     top_grad_linear = []
