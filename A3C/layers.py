@@ -31,10 +31,9 @@ class Conv2d(Layer):
         self.dilation = (dilation,dilation)
    
         self.weight = torch.zeros(self.out_channels,self.in_channels // self.groups, *self.kernel_size)
-        self.weight.requires_grad = True
+
         if bias:
             self.bias = torch.zeros(self.out_channels)
-            self.bias.requires_grad = True
         else:
             self.bias = None
         
@@ -58,7 +57,7 @@ class Conv2d(Layer):
             self.weight.data.uniform_(-w_bound, w_bound)
         else:
             self.weight = torch.zeros(self.out_channels,self.in_channels // self.groups, *self.kernel_size)
-        self.weight.requires_grad = True
+
 
 
     def init_bias(self, random = True, loc=0.0, scale=1):
@@ -70,7 +69,6 @@ class Conv2d(Layer):
         else:
             self.bias = torch.zeros(self.out_channels)
         
-        self.bias.requires_grad = True
 
     def load_weights(self,weight):
         self.weight = weight
@@ -112,10 +110,8 @@ class Linear(Layer):
         self.out_size = out_size
 
         self.weight = torch.zeros(self.out_size,self.in_size)
-        self.weight.requires_grad = True
         if bias:
             self.bias = torch.zeros(out_size)
-            self.bias.requires_grad = True
         else:
             self.bias = None
 
@@ -139,7 +135,6 @@ class Linear(Layer):
         else:
             self.weight = torch.zeros(self.out_size,self.in_size)
 
-        self.weight.requires_grad = True
     
     def init_bias(self, random = True, loc=0.0, scale=1):
         if self.bias is None:
@@ -150,7 +145,6 @@ class Linear(Layer):
         else:
             self.bias = torch.zeros(self.out_size)
         
-        self.bias.requires_grad = True
 
     def load_weights(self,weight):
         self.weight = weight
@@ -203,10 +197,6 @@ class LSTMCell(Layer):
         self.hx = []
 
         #梯度
-        self.weight_hh.requires_grad = True
-        self.weight_ih.requires_grad = True
-        self.bias_hh.requires_grad = True
-        self.bias_ih.requires_grad = True
 
         self.grad_weight_ih = torch.zeros(self.weight_ih.shape)
         self.grad_weight_hh = torch.zeros(self.weight_hh.shape)
@@ -222,8 +212,6 @@ class LSTMCell(Layer):
             self.weight_ih = torch.zeros(4 * self.hidden_size, self.input_size)
             self.weight_hh = torch.zeros(4 * self.hidden_size, self.hidden_size)
         
-        self.weight_hh.requires_grad = True
-        self.weight_ih.requires_grad = True
 
     def init_bias(self, random=True, loc=0.0, scale=0.01):
         if self.bias is False:
@@ -235,9 +223,7 @@ class LSTMCell(Layer):
         else:
             self.bias_ih = torch.zeros(4 * self.hidden_size)
             self.bias_hh = torch.zeros(4 * self.hidden_size)
-        
-        self.bias_hh.requires_grad = True
-        self.bias_ih.requires_grad = True
+
 
     def load_weights(self):
         pass
