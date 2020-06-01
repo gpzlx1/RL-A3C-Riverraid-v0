@@ -40,9 +40,7 @@ def test(rank, args, shared_model, counter, log_path):
                 model.clear_temp()
                 cx = torch.zeros(1, 256)
                 hx = torch.zeros(1, 256)
-            else:
-                cx = cx.detach()
-                hx = hx.detach()
+
 
             value, logit, (hx, cx) = model.forward((state.unsqueeze(0), (hx, cx)))
             prob = F.softmax(logit, dim=1)
