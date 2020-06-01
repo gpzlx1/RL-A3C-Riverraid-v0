@@ -27,10 +27,10 @@ def test(rank, args, shared_model, counter, log_path):
     start_time = time.time()
 
     # a quick hack to prevent the agent from stucking
-    actions = deque(maxlen=100)
+    actions = deque(maxlen=300)
     step_length = 0
     try:
-        
+
         while True:
             step_length += 1
             #sync
