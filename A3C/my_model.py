@@ -88,21 +88,21 @@ class AcotrCritic(object):
         self.y3 = []
         self.y4 = []
 
-    def clear_grad(self):
+    def clear_temp(self):
         self.y1.clear()
         self.y2.clear()
         self.y3.clear()
         self.y4.clear()
 
-        self.conv1.clear_grad()
-        self.conv2.clear_grad()
-        self.conv3.clear_grad()
-        self.conv4.clear_grad()
+        self.conv1.clear_temp()
+        self.conv2.clear_temp()
+        self.conv3.clear_temp()
+        self.conv4.clear_temp()
 
-        self.lstm.clear_grad()
+        self.lstm.clear_temp()
 
-        self.actor_linear.clear_grad()
-        self.critic_linear.clear_grad()
+        self.actor_linear.clear_temp()
+        self.critic_linear.clear_temp()
 
     def forward(self, inputs):
         inputs, (hx, cx) = inputs
@@ -288,7 +288,7 @@ def copy_weight(model, my_model):
         print("error")
 
 
-def check(model, my_model):
+def check_grad(model, my_model):
     print("--- linear")
     eval(my_model.actor_linear.weight.grad, model.actor_linear.weight.grad)
     eval(my_model.actor_linear.bias.grad, model.actor_linear.bias.grad)
@@ -318,16 +318,45 @@ def check(model, my_model):
     # eval(grad_inputs, inputs.grad)
 
 
+def check_weight(model, my_model):
+    print("--- linear")
+    eval(my_model.actor_linear.weight, model.actor_linear.weight)
+    eval(my_model.actor_linear.bias, model.actor_linear.bias)
+    eval(my_model.critic_linear.weight, model.critic_linear.weight)
+    eval(my_model.critic_linear.bias, model.critic_linear.bias)
+
+    print("--- lstm")
+    eval(my_model.lstm.bias_hh, model.lstm.bias_hh)
+    eval(my_model.lstm.bias_ih, model.lstm.bias_ih)
+    eval(my_model.lstm.weight_ih, model.lstm.weight_ih)
+    eval(my_model.lstm.weight_hh, model.lstm.weight_hh)
+
+    print("--- conv")
+    eval(my_model.conv4.weight, model.conv4.weight)
+    eval(my_model.conv4.bias, model.conv4.bias)
+
+    eval(my_model.conv3.weight, model.conv3.weight)
+    eval(my_model.conv3.bias, model.conv3.bias)
+
+    eval(my_model.conv2.weight, model.conv2.weight)
+    eval(my_model.conv2.bias, model.conv2.bias)
+
+    eval(my_model.conv1.weight, model.conv1.weight)
+    eval(my_model.conv1.bias, model.conv1.bias)
+
+    print("--- finish")
+
+
 def model_backward(model, my_model):
     top_grad_logit = []
     top_grad_value = []
     loss = 0
-    my_model.clear_grad()
+    my_model.clear_temp()
     cx = torch.randn(1, 256)
     hx = torch.randn(1, 256)
     my_cx = cx
     my_hx = hx
-    for i in range(100):
+    for i in range(50):
         inputs = torch.randn(state.unsqueeze(0).shape)
 
         my_value, my_logit, (my_hx, my_cx) = my_model.forward((inputs, (my_hx, my_cx)))
@@ -352,7 +381,7 @@ if __name__ == "__main__":
     print("-------------many element ---------------")
     env = create_atari_env("Riverraid-v0")
     my_model = AcotrCritic(env.observation_space.shape[0], env.action_space)
-    my_model.clear_grad()
+    #my_model.clear_temp()
 
     model = model.ActorCritic(env.observation_space.shape[0], env.action_space)
     model.train()
@@ -363,17 +392,35 @@ if __name__ == "__main__":
 
 
     import torch.optim as optim
+
     optimizer = optim.Adam(model.parameters())
-    print("---- checkout model backward ----")
-    top_grad_logit, top_grad_value, loss = model_backward(model, my_model)
-    loss.backward()
-    my_model.backward(top_grad_value, top_grad_logit)
-    check(model, my_model)
+    my_optimizer = optim.Adam(my_model.parameters())
+    
+    for i in range(5):
+        optimizer.zero_grad()
+        my_optimizer.zero_grad()
+        my_model.clear_temp()
+        print("---- checkout model backward ----")
+
+        top_grad_logit, top_grad_value, loss = model_backward(model, my_model)
+        loss.backward()
+
+        my_model.backward(top_grad_value, top_grad_logit)
+
+        print("---check grad")
+        check_grad(model, my_model)
+        print("---check update")
+        my_optimizer.step()
+        optimizer.step()
+        check_weight(model, my_model)
+
+
+    
+
     optimizer.zero_grad()
-    my_model.clear_grad()
-
-
-
+    my_optimizer.zero_grad()
+    my_model.clear_temp()
+    
     print("---- checkout loss backward ----")
     values = []
     log_probs = []
@@ -464,7 +511,7 @@ if __name__ == "__main__":
     (policy_loss + args.value_loss_coef * value_loss).backward()
     top_grad_value, top_grad_logit = grad_loss(my_values, my_logits, rewards, actions, args,R_0)
     my_model.backward(top_grad_value, top_grad_logit)
-    check(model, my_model)
+    check_grad(model, my_model)
     temp = 0
     for i in range(len(values)):
         temp = temp + abs(values[i] - my_values[i])
@@ -474,4 +521,4 @@ if __name__ == "__main__":
     for i in range(len(values)):
         temp = temp + torch.max(torch.abs(values[i] - my_values[i]))
     print(temp)
-
+    
