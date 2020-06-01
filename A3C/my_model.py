@@ -261,29 +261,29 @@ def copy_weight(model, my_model):
 
 def check(model, my_model):
     print("--- linear")
-    eval(my_model.actor_linear.grad_weight, model.actor_linear.weight.grad)
-    eval(my_model.actor_linear.grad_bias, model.actor_linear.bias.grad)
-    eval(my_model.critic_linear.grad_weight, model.critic_linear.weight.grad)
-    eval(my_model.critic_linear.grad_bias, model.critic_linear.bias.grad)
+    eval(my_model.actor_linear.weight.grad, model.actor_linear.weight.grad)
+    eval(my_model.actor_linear.bias.grad, model.actor_linear.bias.grad)
+    eval(my_model.critic_linear.weight.grad, model.critic_linear.weight.grad)
+    eval(my_model.critic_linear.bias.grad, model.critic_linear.bias.grad)
 
     print("--- lstm")
-    eval(my_model.lstm.grad_bias_hh, model.lstm.bias_hh.grad)
-    eval(my_model.lstm.grad_bias_ih, model.lstm.bias_ih.grad)
-    eval(my_model.lstm.grad_weight_ih, model.lstm.weight_ih.grad)
-    eval(my_model.lstm.grad_weight_hh, model.lstm.weight_hh.grad)
+    eval(my_model.lstm.bias_hh.grad, model.lstm.bias_hh.grad)
+    eval(my_model.lstm.bias_ih.grad, model.lstm.bias_ih.grad)
+    eval(my_model.lstm.weight_ih.grad, model.lstm.weight_ih.grad)
+    eval(my_model.lstm.weight_hh.grad, model.lstm.weight_hh.grad)
 
     print("--- conv")
-    eval(my_model.conv4.grad_weight, model.conv4.weight.grad)
-    eval(my_model.conv4.grad_bias, model.conv4.bias.grad)
+    eval(my_model.conv4.weight.grad, model.conv4.weight.grad)
+    eval(my_model.conv4.bias.grad, model.conv4.bias.grad)
 
-    eval(my_model.conv3.grad_weight, model.conv3.weight.grad)
-    eval(my_model.conv3.grad_bias, model.conv3.bias.grad)
+    eval(my_model.conv3.weight.grad, model.conv3.weight.grad)
+    eval(my_model.conv3.bias.grad, model.conv3.bias.grad)
 
-    eval(my_model.conv2.grad_weight, model.conv2.weight.grad)
-    eval(my_model.conv2.grad_bias, model.conv2.bias.grad)
+    eval(my_model.conv2.weight.grad, model.conv2.weight.grad)
+    eval(my_model.conv2.bias.grad, model.conv2.bias.grad)
 
-    eval(my_model.conv1.grad_weight, model.conv1.weight.grad)
-    eval(my_model.conv1.grad_bias, model.conv1.bias.grad)
+    eval(my_model.conv1.weight.grad, model.conv1.weight.grad)
+    eval(my_model.conv1.bias.grad, model.conv1.bias.grad)
 
     print("--- input")
     # eval(grad_inputs, inputs.grad)
@@ -332,11 +332,16 @@ if __name__ == "__main__":
 
     copy_weight(model, my_model)
 
+
+    import torch.optim as optim
+    optimizer = optim.Adam(model.parameters())
     print("---- checkout model backward ----")
-#    top_grad_logit, top_grad_value, loss = model_backward(model, my_model)
-#    loss.backward()
-#    my_model.backward(top_grad_value, top_grad_logit)
-#    check(model, my_model)
+    top_grad_logit, top_grad_value, loss = model_backward(model, my_model)
+    loss.backward()
+    my_model.backward(top_grad_value, top_grad_logit)
+    check(model, my_model)
+    optimizer.zero_grad()
+    my_model.clear_grad()
 
 
 
