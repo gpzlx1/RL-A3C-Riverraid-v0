@@ -484,7 +484,7 @@ if __name__ == "__main__":
 
         state, reward, done, _ = env.step(action.numpy())
 
-        done = done or episode_length >= args.max_episode_length
+        done = done or episode_length >= args.max_step_length
         reward = max(min(reward, 1), -1)
 
 
