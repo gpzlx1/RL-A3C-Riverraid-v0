@@ -51,6 +51,7 @@ def grad_loss(values, logits, rewards, actions, params,R):
     return grad_value[::-1], grad_logits[::-1]
 
 
+
 class AcotrCritic(object):
     def __init__(self, num_inputs, action_space):
         self.conv1 = layers.Conv2d(num_inputs, 32, 3, stride=2, padding=1)
@@ -198,17 +199,32 @@ class AcotrCritic(object):
                 p.grad.detach().mul_(clip_coef)
         return total_norm
 
-        
-
-
     def save_model(self):
         raise NotImplementedError
 
     def load_model(self):
         raise NotImplementedError
 
-    def get_parameters(self):
-        raise NotImplementedError
+    def get_parameters(self,parameters):
+        parameters = [p for p in parameters]
+        self.conv1.weight = parameters[0].clone()
+        self.conv1.bias = parameters[1].clone()
+        self.conv2.weight = parameters[2].clone()
+        self.conv2.bias = parameters[3].clone()
+        self.conv3.weight = parameters[4].clone()
+        self.conv3.bias = parameters[5].clone()
+        self.conv4.weight = parameters[6].clone()
+        self.conv4.bias = parameters[7].clone()
+        self.lstm.weight_ih = parameters[8].clone()
+        self.lstm.weight_hh = parameters[9].clone()
+        self.lstm.bias_ih = parameters[10].clone()
+        self.lstm.bias_hh = parameters[11].clone()
+        self.critic_linear.weight = parameters[12].clone()
+        self.critic_linear.bias = parameters[13].clone()
+        self.actor_linear.weight = parameters[14].clone()
+        self.actor_linear.bias = parameters[15].clone()
+
+
 
 
 def eval(value1, value2):
@@ -538,3 +554,8 @@ if __name__ == "__main__":
     
     print('----------check clip_grad----------')
     check_clip_grad(my_model,model,0.1)
+
+    print('---------------model_to_model------------------')
+    my_model_2 = AcotrCritic(env.observation_space.shape[0], env.action_space)
+    my_model.get_parameters(my_model_2.parameters())
+    check_weight(my_model,my_model_2)
