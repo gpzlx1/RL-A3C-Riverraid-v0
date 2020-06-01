@@ -36,6 +36,7 @@ def test(rank, args, shared_model, counter, log_path):
             step_length += 1
             #sync
             if done:
+                model.clear_temp()
                 model.get_parameters(shared_model.parameters())
                 cx = torch.zeros(1, 256)
                 hx = torch.zeros(1, 256)
