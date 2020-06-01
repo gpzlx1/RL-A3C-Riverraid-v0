@@ -38,14 +38,11 @@ class Conv2d(Layer):
         self.grad_weight = torch.zeros(self.out_channels,self.in_channels // self.groups, *self.kernel_size)
         self.input = []
 
-    def clear_grad(self):
+    def clear_temp(self):
         self.grad_bias = torch.zeros(self.out_channels)
         self.grad_weight = torch.zeros(self.out_channels,self.in_channels // self.groups, *self.kernel_size)
         self.input.clear()
 
-        self.weight.grad = torch.zeros(self.weight.shape)
-        if self.bias is not None:
-            self.bias.grad = torch.zeros(self.bias.shape)
 
     def init_weight(self,random = True, loc=0.0, scale=1):
         if random:
@@ -121,15 +118,11 @@ class Linear(Layer):
         
 
 
-    def clear_grad(self):
+    def clear_temp(self):
         self.grad_bias = torch.zeros(self.out_size)
         self.grad_weight = torch.zeros(self.out_size,self.in_size)
         self.input.clear()
 
-        self.weight.grad = torch.zeros(self.weight.shape)
-
-        if self.bias is not None:
-            self.bias.grad = torch.zeros(self.bias.shape)
 
     def init_weight(self,random = True, loc=0.0, scale=1):
         if random:
@@ -328,7 +321,7 @@ class LSTMCell(Layer):
 
         return bottom_grad_inputs, bottom_grad_h_list, bottom_grad_c_list
 
-    def clear_grad(self):
+    def clear_temp(self):
                #中间变量
         self.pre_inputs.clear()
         self.ingate.clear()
@@ -346,10 +339,6 @@ class LSTMCell(Layer):
         self.grad_bias_ih = torch.zeros(self.bias_ih.shape)
         self.grad_bias_hh = torch.zeros(self.bias_hh.shape)
 
-        self.weight_hh.grad = torch.zeros(self.weight_hh.shape)
-        self.weight_ih.grad = torch.zeros(self.weight_ih.shape)
-        self.bias_hh.grad = torch.zeros(self.bias_hh.shape)
-        self.bias_ih.grad = torch.zeros(self.bias_ih.shape)
 
 class LSTMTest(torch.nn.Module):
     def __init__(self, input_size, hidden_size, bias=True):
@@ -376,7 +365,7 @@ if __name__ == "__main__":
     LSTM.weight_ih = test1.lstm.weight_ih.data
     LSTM.bias_hh = test1.lstm.bias_hh.data
     LSTM.bias_ih = test1.lstm.bias_ih.data
-    #LSTM.clear_grad()
+    #LSTM.clear_temp()
 
     print("---many elements test -----")
     loss = 0
@@ -399,7 +388,7 @@ if __name__ == "__main__":
     _, _ = LSTM.forward(inputs, (mh,mc))
     LSTM.backward([torch.ones(mh.shape)], [torch.zeros(mc.shape)])
     #print(LSTM.weight_hh.grad, LSTM.weight_ih.grad, LSTM.bias_hh.grad, LSTM.bias_ih.grad)
-    LSTM.clear_grad()
+    LSTM.clear_temp()
     #print(LSTM.weight_hh.grad, LSTM.weight_ih.grad, LSTM.bias_hh.grad, LSTM.bias_ih.grad)
 
     for i in range(100):
@@ -439,7 +428,7 @@ if __name__ == "__main__":
     result = conv_1.forward(input)
     conv_1.backward([torch.ones(result.shape)])
    
-    conv_1.clear_grad()
+    conv_1.clear_temp()
     #print(conv_1.weight.grad, conv_1.bias.grad)
     
     loss = 0
@@ -474,7 +463,7 @@ if __name__ == "__main__":
     result = my_linear.forward(input)
     my_linear.backward([torch.ones(result.shape)])
     #print(my_linear.weight.grad, my_linear.bias.grad)
-    my_linear.clear_grad()
+    my_linear.clear_temp()
     #print(my_linear.weight.grad, my_linear.bias.grad)
 
     loss = 0
