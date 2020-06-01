@@ -7,8 +7,6 @@ import torch.nn.functional as F
 from envs import create_atari_env
 from my_model import AcotrCritic
 
-def mean(values):
-    return sum(values) / len(values)
 
 def test(rank, args, shared_model, counter, log_path):
 
@@ -60,13 +58,14 @@ def test(rank, args, shared_model, counter, log_path):
 
             if done:
                 rewards.append(reward_sum)
+                mean_100_episode = sum(rewards[-100:]) / len(rewards[-100:])
                 mess = "Time: {}, num steps {}, FPS {:.0f}, current reward {}, step length {}, 100-episode reward {}\n".format(
                     time.strftime("%Hh %Mm %Ss", time.gmtime(time.time() - start_time)),
                     counter.value, 
                     counter.value / (time.time() - start_time),
                     reward_sum,
                     step_length,
-                    mean(reward_sum[-100:])
+                    mean_100_episode
                 )
                 log_file.write(mess)
                 reward_sum = 0
@@ -75,8 +74,8 @@ def test(rank, args, shared_model, counter, log_path):
                 state = env.reset()
                 time.sleep(45)
 
-                if mean(reward_sum[-100:]) > max_100_episode_reward:
-                    max_100_episode_reward = mean(reward_sum[-100:])
+                if mean_100_episode > max_100_episode_reward:
+                    max_100_episode_reward = mean_100_episode
                     model.save_model(args.model_path + "checkpoint_" + str(max_100_episode_reward))
 
             state = torch.Tensor(state)

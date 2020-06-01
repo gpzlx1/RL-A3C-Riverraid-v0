@@ -135,13 +135,14 @@ def train(rank, args, shared_model, counter, lock, optimizer):
         values.append(R)
         gae = torch.zeros(1, 1)
 
+        optimizer.zero_grad()
         #compute loss and grad for value and logit
         top_grad_value, top_grad_logit = grad_loss(values, logits, 
                 rewards, actions, args, R)
 
         #update weight
-        optimizer.zero_grad()
-        model.backward(top_grad_value. top_grad_logit)
+        model.backward(top_grad_value, top_grad_logit)
+        clip_grad(model.parameters(), args.max_grad_norm)
         ensure_shared_grads(model, shared_model)
         optimizer.step()
 
