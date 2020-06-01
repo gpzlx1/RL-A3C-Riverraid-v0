@@ -3,6 +3,11 @@ import numpy as np
 import torch.nn.functional as F
 from copy import deepcopy
 
+def normalized_columns_initializer(weights, std=1.0):
+    out = torch.randn(weights.size())
+    out *= std / torch.sqrt(out.pow(2).sum(1, keepdim=True))
+    return out
+
 class Layer(object):
     def forward(self):
         raise NotImplementedError
@@ -46,7 +51,11 @@ class Conv2d(Layer):
 
     def init_weight(self,random = True, loc=0.0, scale=1):
         if random:
-            self.weight = torch.Tensor(np.random.normal(loc=loc, scale=scale, size=(self.out_channels,self.in_channels // self.groups, *self.kernel_size)))
+            weight_shape = list(self.weight.data.size())
+            fan_in = np.prod(weight_shape[1:4])
+            fan_out = np.prod(weight_shape[2:4]) * weight_shape[0]
+            w_bound = np.sqrt(6. / (fan_in + fan_out))
+            self.weight.data.uniform_(-w_bound, w_bound)
         else:
             self.weight = torch.zeros(self.out_channels,self.in_channels // self.groups, *self.kernel_size)
         self.weight.requires_grad = True
@@ -126,7 +135,7 @@ class Linear(Layer):
 
     def init_weight(self,random = True, loc=0.0, scale=1):
         if random:
-            self.weight = torch.Tensor(np.random.normal(loc=loc, scale=scale, size=(self.out_size,self.in_size)))
+            self.weight.data =  normalized_columns_initializer(self.weight.data, 1.0)
         else:
             self.weight = torch.zeros(self.out_size,self.in_size)
 
@@ -205,7 +214,7 @@ class LSTMCell(Layer):
         self.grad_bias_hh = torch.zeros(self.bias_hh.shape)
 
 
-    def init_weight(self, random=True, loc=0.0, scale=1):
+    def init_weight(self, random=True, loc=0.0, scale=0.01):
         if random:
             self.weight_ih = torch.Tensor(np.random.normal(loc=loc, scale=scale, size=self.weight_ih.shape))
             self.weight_hh = torch.Tensor(np.random.normal(loc=loc, scale=scale, size=self.weight_hh.shape))
@@ -216,7 +225,7 @@ class LSTMCell(Layer):
         self.weight_hh.requires_grad = True
         self.weight_ih.requires_grad = True
 
-    def init_bias(self, random=True, loc=0.0, scale=1):
+    def init_bias(self, random=True, loc=0.0, scale=0.01):
         if self.bias is False:
             return 
 
