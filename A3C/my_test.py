@@ -67,6 +67,7 @@ def test(rank, args, shared_model, counter, log_path):
                     step_length,
                     mean_100_episode
                 )
+                print(mess)
                 log_file.write(mess)
                 reward_sum = 0
                 step_length = 0
