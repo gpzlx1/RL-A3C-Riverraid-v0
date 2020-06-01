@@ -187,6 +187,9 @@ class AcotrCritic(object):
         yield self.actor_linear.weight
         yield self.actor_linear.bias
 
+    def share_memory(self):
+        for i in self.parameters():
+            i.share_memory_()
 
     def clip_grad(self,parameters, max_norm, norm_type=2):
         parameters = list(filter(lambda p: p.grad is not None, parameters))
