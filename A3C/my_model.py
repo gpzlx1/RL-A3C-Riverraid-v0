@@ -199,11 +199,13 @@ class AcotrCritic(object):
                 p.grad.detach().mul_(clip_coef)
         return total_norm
 
-    def save_model(self):
-        raise NotImplementedError
+    def save_model(self,filename = 'trained_parameter'):
+        parameters = [p for p in self.parameters()]
+        torch.save(parameters,'./'+filename)
 
-    def load_model(self):
-        raise NotImplementedError
+    def load_model(self,filename = 'trained_parameter'):
+        parameters = torch.load('./'+filename)
+        self.get_parameters(parameters)
 
     def get_parameters(self,parameters):
         parameters = [p for p in parameters]
@@ -556,6 +558,12 @@ if __name__ == "__main__":
     check_clip_grad(my_model,model,0.1)
 
     print('---------------model_to_model------------------')
-    my_model_2 = AcotrCritic(env.observation_space.shape[0], env.action_space)
-    my_model.get_parameters(my_model_2.parameters())
-    check_weight(my_model,my_model_2)
+#    my_model_2 = AcotrCritic(env.observation_space.shape[0], env.action_space)
+#    my_model.get_parameters(my_model_2.parameters())
+#    check_weight(my_model,my_model_2)
+
+    print('---------------save_model/load_model------------------')
+    my_model.save_model('trained_parameter')
+    my_model_3 = AcotrCritic(env.observation_space.shape[0], env.action_space)
+    my_model_3.load_model('trained_parameter')
+    check_weight(my_model_3,my_model)
