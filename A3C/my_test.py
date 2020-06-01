@@ -75,7 +75,7 @@ def test(rank, args, shared_model, counter, log_path):
 
                 if mean(reward_sum[-100:]) > max_100_episode_reward:
                     max_100_episode_reward = mean(reward_sum[-100:])
-                    model.save_model(args.model_path + "_checkpoint_" + str(max_100_episode_reward))
+                    model.save_model(args.model_path + "checkpoint_" + str(max_100_episode_reward))
 
             state = torch.Tensor(state)
 
