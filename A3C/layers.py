@@ -24,8 +24,11 @@ class Conv2d(Layer):
         self.groups = groups
         self.dilation = (dilation,dilation)
    
+        self.weight = torch.zeros(self.out_channels,self.in_channels // self.groups, *self.kernel_size)
+        self.weight.requires_grad = True
         if bias:
             self.bias = torch.zeros(self.out_channels)
+            self.bias.requires_grad = True
         else:
             self.bias = None
         
@@ -39,11 +42,16 @@ class Conv2d(Layer):
         self.grad_weight = torch.zeros(self.out_channels,self.in_channels // self.groups, *self.kernel_size)
         self.input.clear()
 
+        self.weight.grad = None
+        if self.bias is not None:
+            self.bias.grad = None
+
     def init_weight(self,random = True, loc=0.0, scale=1):
         if random:
             self.weight = torch.Tensor(np.random.normal(loc=loc, scale=scale, size=(self.out_channels,self.in_channels // self.groups, *self.kernel_size)))
         else:
             self.weight = torch.zeros(self.out_channels,self.in_channels // self.groups, *self.kernel_size)
+        self.weight.requires_grad = True
 
 
     def init_bias(self, random = True, loc=0.0, scale=1):
@@ -54,6 +62,8 @@ class Conv2d(Layer):
             self.bias = torch.Tensor(np.random.normal(loc=loc, scale=scale, size=self.out_channels))
         else:
             self.bias = torch.zeros(self.out_channels)
+        
+        self.bias.requires_grad = True
 
     def load_weights(self,weight):
         self.weight = weight
@@ -80,6 +90,9 @@ class Conv2d(Layer):
             else:
                 self.grad_weight = torch.add(weight_grad[:,:,:self.weight.shape[2],:self.weight.shape[2]], self.grad_weight)
                 all_conv_for_back.append(conv_for_back[:,:,:self.input[i].shape[2],:self.input[i].shape[2]])
+        
+        self.bias.grad = self.grad_bias
+        self.weight.grad = self.grad_weight
         return all_conv_for_back
 
 
@@ -90,8 +103,12 @@ class Linear(Layer):
     def __init__(self,in_size,out_size,bias = True):
         self.in_size = in_size
         self.out_size = out_size
+
+        self.weight = torch.zeros(self.out_size,self.in_size)
+        self.weight.requires_grad = True
         if bias:
             self.bias = torch.zeros(out_size)
+            self.bias.requires_grad = True
         else:
             self.bias = None
 
@@ -100,10 +117,18 @@ class Linear(Layer):
         self.grad_weight = torch.zeros(self.out_size,self.in_size)
         self.input = []
 
+        
+
+
     def clear_grad(self):
         self.grad_bias = torch.zeros(self.out_size)
         self.grad_weight = torch.zeros(self.out_size,self.in_size)
         self.input.clear()
+
+        self.weight.grad = None
+
+        if self.bias is not None:
+            self.bias.grad = None
 
     def init_weight(self,random = True, loc=0.0, scale=1):
         if random:
@@ -111,6 +136,7 @@ class Linear(Layer):
         else:
             self.weight = torch.zeros(self.out_size,self.in_size)
 
+        self.weight.requires_grad = True
     
     def init_bias(self, random = True, loc=0.0, scale=1):
         if self.bias is None:
@@ -120,6 +146,8 @@ class Linear(Layer):
             self.bias = torch.Tensor(np.random.normal(loc=loc, scale=scale, size=self.out_size))
         else:
             self.bias = torch.zeros(self.out_size)
+        
+        self.bias.requires_grad = True
 
     def load_weights(self,weight):
         self.weight = weight
@@ -136,6 +164,9 @@ class Linear(Layer):
             self.grad_weight = torch.add(torch.matmul(top_grad_t,self.input[i]), self.grad_weight)
             self.grad_bias = torch.add(top_grad.squeeze(0), self.grad_bias)
             ret.append(torch.matmul(top_grad,self.weight))
+
+        self.bias.grad = self.grad_bias
+        self.weight.grad = self.grad_weight
         return ret
 
 
@@ -156,6 +187,7 @@ class LSTMCell(Layer):
             self.bias_ih = None
             self.bias_hh = None
 
+
         #中间变量
         self.pre_inputs = []
         self.ingate = []
@@ -168,6 +200,11 @@ class LSTMCell(Layer):
         self.hx = []
 
         #梯度
+        self.weight_hh.requires_grad = True
+        self.weight_ih.requires_grad = True
+        self.bias_hh.requires_grad = True
+        self.bias_ih.requires_grad = True
+
         self.grad_weight_ih = torch.zeros(self.weight_ih.shape)
         self.grad_weight_hh = torch.zeros(self.weight_hh.shape)
         self.grad_bias_ih = torch.zeros(self.bias_ih.shape)
@@ -181,6 +218,9 @@ class LSTMCell(Layer):
         else:
             self.weight_ih = torch.zeros(4 * self.hidden_size, self.input_size)
             self.weight_hh = torch.zeros(4 * self.hidden_size, self.hidden_size)
+        
+        self.weight_hh.requires_grad = True
+        self.weight_ih.requires_grad = True
 
     def init_bias(self, random=True, loc=0.0, scale=1):
         if self.bias is False:
@@ -192,6 +232,9 @@ class LSTMCell(Layer):
         else:
             self.bias_ih = torch.zeros(4 * self.hidden_size)
             self.bias_hh = torch.zeros(4 * self.hidden_size)
+        
+        self.bias_hh.requires_grad = True
+        self.bias_ih.requires_grad = True
 
     def load_weights(self):
         pass
@@ -273,9 +316,15 @@ class LSTMCell(Layer):
             bottom_grad_h_list.append(bottom_grad_h)
             bottom_grad_c_list.append(bottom_grad_c)
 
+        self.weight_hh.grad = self.grad_weight_hh
+        self.weight_ih.grad = self.grad_weight_ih
+        self.bias_hh.grad = self.grad_bias_hh
+        self.bias_ih.grad = self.grad_bias_ih
+
         bottom_grad_inputs.reverse()
         bottom_grad_h_list.reverse()
         bottom_grad_c_list.reverse()
+
         return bottom_grad_inputs, bottom_grad_h_list, bottom_grad_c_list
 
     def clear_grad(self):
@@ -295,6 +344,11 @@ class LSTMCell(Layer):
         self.grad_weight_hh = torch.zeros(self.weight_hh.shape)
         self.grad_bias_ih = torch.zeros(self.bias_ih.shape)
         self.grad_bias_hh = torch.zeros(self.bias_hh.shape)
+
+        self.weight_hh.grad = None
+        self.weight_ih.grad = None
+        self.bias_hh.grad = None
+        self.bias_ih.grad = None
 
 class LSTMTest(torch.nn.Module):
     def __init__(self, input_size, hidden_size, bias=True):
@@ -328,19 +382,29 @@ if __name__ == "__main__":
     top_grad_h = []
     top_grad_c = []
 
+    
+
+
     cx = torch.randn((1, 256),requires_grad=True)
     hx = torch.randn((1, 256),requires_grad=True)
     mh = hx
     mc = cx
     first_cx = cx
     first_hx = hx
+
+    #warn up
+    inputs = torch.randn(1,32*3*3)
+    _, _ = LSTM.forward(inputs, (mh,mc))
+    LSTM.backward([torch.ones(mh.shape)], [torch.zeros(mc.shape)])
+    LSTM.clear_grad()
+    print(LSTM.weight_hh.grad, LSTM.weight_ih.grad, LSTM.bias_hh.grad, LSTM.bias_ih.grad)
+
     for i in range(100):
         inputs = torch.randn(1,32*3*3,requires_grad=True)
         mh,mc = LSTM.forward(inputs, (mh,mc))
         hx, cx = test1((inputs, (hx,cx)))
         loss = loss + hx.sum()
 
-        
         top_grad_h.append(torch.ones(mh.shape))
         top_grad_c.append(torch.zeros(mc.shape))
 
@@ -350,10 +414,10 @@ if __name__ == "__main__":
     eval(first_hx.grad, bottom_grad_h[0])
     eval(first_cx.grad, bottom_grad_c[0])
     print("parameter")
-    eval(test1.lstm.weight_hh.grad , LSTM.grad_weight_hh)
-    eval(test1.lstm.weight_ih.grad , LSTM.grad_weight_ih)
-    eval(test1.lstm.bias_ih.grad , LSTM.grad_bias_ih)
-    eval(test1.lstm.bias_hh.grad , LSTM.grad_bias_hh)
+    eval(test1.lstm.weight_hh.grad , LSTM.weight_hh.grad)
+    eval(test1.lstm.weight_ih.grad , LSTM.weight_ih.grad)
+    eval(test1.lstm.bias_ih.grad , LSTM.bias_ih.grad)
+    eval(test1.lstm.bias_hh.grad , LSTM.bias_hh.grad)
 
 
 
@@ -367,6 +431,14 @@ if __name__ == "__main__":
     conv_1.weight = Convtest.weight.data
     conv_1.bias = Convtest.bias.data
 
+    #warm up
+    input = torch.randn(32,6,6).unsqueeze(0)
+    result = conv_1.forward(input)
+    conv_1.backward([torch.ones(result.shape)])
+   
+    conv_1.clear_grad()
+    print(conv_1.weight.grad, conv_1.bias.grad)
+    
     loss = 0
     top_grad_conv = []
     for i in range(100):
@@ -382,8 +454,8 @@ if __name__ == "__main__":
     loss.sum().backward()
 
     bottom_grad = conv_1.backward(top_grad_conv)
-    eval(Convtest.weight.grad, conv_1.grad_weight)
-    eval(Convtest.bias.grad, conv_1.grad_bias)
+    eval(Convtest.weight.grad, conv_1.weight.grad)
+    eval(Convtest.bias.grad, conv_1.bias.grad)
 
 
     print("begin ------------linear---------------")
@@ -394,11 +466,17 @@ if __name__ == "__main__":
     my_linear.weight = linear.weight.data 
     my_linear.bias = linear.bias.data 
 
+    #warm up
+    input = torch.randn(1,256)
+    result = my_linear.forward(input)
+    my_linear.backward([torch.ones(result.shape)])
+    my_linear.clear_grad()
+    print(my_linear.weight.grad, my_linear.bias.grad)
+
     loss = 0
     top_grad_linear = []
     for i in range(100):
         input = torch.randn(1,256)
-        weight = torch.randn(18,256)
 
         #forward_test
         result = linear(input)
@@ -409,8 +487,8 @@ if __name__ == "__main__":
     
     loss.backward()
     bottom_grad = my_linear.backward(top_grad_linear)
-    eval(linear.weight.grad, my_linear.grad_weight)
-    eval(linear.bias.grad, my_linear.grad_bias)
+    eval(linear.weight.grad, my_linear.weight.grad)
+    eval(linear.bias.grad, my_linear.bias.grad)
     
     
     
