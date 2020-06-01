@@ -11,7 +11,7 @@ params = {
         'seed' : 1,
         'num_processes' : 4,
         'num_steps' : 20,
-        'max_episode_length' : 1000000,
+        'max_step_length' : 1000000,
         'env_name' : 'Riverraid-v0',
         'no_shared' : False
 }
