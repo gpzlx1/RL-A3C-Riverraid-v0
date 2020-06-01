@@ -1,6 +1,7 @@
 import torch
 import numpy as np
 import torch.nn.functional as F
+from copy import deepcopy
 
 class Layer(object):
     def forward(self):
@@ -300,7 +301,7 @@ class LSTMCell(Layer):
             self.grad_weight_ih = torch.add(self.grad_weight_ih, grad_weight_ih)
             self.grad_weight_hh = torch.add(self.grad_weight_hh, grad_weight_hh)
             self.grad_bias_hh = torch.add(self.grad_bias_hh, d_ifgo.squeeze(0))
-            self.grad_bias_ih = self.grad_bias_hh
+            self.grad_bias_ih = self.grad_bias_hh.clone()
 
             param_ii, param_if, param_ig, param_io = self.weight_ih.chunk(4,0)
             bottom_grad_inputs.append( di_input.matmul(param_ii).add(df_input.matmul(param_if)).add( \
