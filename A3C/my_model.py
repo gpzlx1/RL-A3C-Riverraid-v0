@@ -189,7 +189,7 @@ class AcotrCritic(object):
 
     def share_memory(self):
         for i in self.parameters():
-            i.share_memory_()
+            i.data.share_memory_()
 
     def clip_grad(self,parameters, max_norm, norm_type=2):
         parameters = list(filter(lambda p: p.grad is not None, parameters))
