@@ -175,8 +175,8 @@ class LSTMCell(Layer):
         self.hidden_size = hidden_size
         self.bias = bias
         '''初始化所有参数为0'''
-        self.weight_ih = torch.zeros(4 * hidden_size, input_size)
-        self.weight_hh = torch.zeros(4 * hidden_size, hidden_size)
+        self.weight_ih = torch.Tensor(4 * hidden_size, input_size)
+        self.weight_hh = torch.Tensor(4 * hidden_size, hidden_size)
         if bias:
             self.bias_ih = torch.zeros(4 * hidden_size)
             self.bias_hh = torch.zeros(4 * hidden_size)
@@ -206,8 +206,8 @@ class LSTMCell(Layer):
 
     def init_weight(self, random=True, loc=0.0, scale=0.01):
         if random:
-            self.weight_ih = torch.Tensor(np.random.normal(loc=loc, scale=scale, size=self.weight_ih.shape))
-            self.weight_hh = torch.Tensor(np.random.normal(loc=loc, scale=scale, size=self.weight_hh.shape))
+            self.weight_ih = torch.Tensor(4 * hidden_size, input_size)
+            self.weight_hh = torch.Tensor(4 * hidden_size, hidden_size)
         else:
             self.weight_ih = torch.zeros(4 * self.hidden_size, self.input_size)
             self.weight_hh = torch.zeros(4 * self.hidden_size, self.hidden_size)
