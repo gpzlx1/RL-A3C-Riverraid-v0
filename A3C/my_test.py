@@ -65,7 +65,7 @@ def test(rank, args, shared_model, counter, log_path):
                     counter.value / (time.time() - start_time),
                     reward_sum,
                     step_length,
-                    mean_100_episode
+                    int(mean_100_episode)
                 )
                 print(mess, end='')
                 log_file.write(mess)
@@ -73,7 +73,7 @@ def test(rank, args, shared_model, counter, log_path):
                 step_length = 0
                 actions.clear()
                 state = env.reset()
-                time.sleep(45)
+                time.sleep(args.test_interval)
 
                 if mean_100_episode > max_100_episode_reward:
                     max_100_episode_reward = mean_100_episode

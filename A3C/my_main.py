@@ -23,6 +23,7 @@ class config(object):
         self.max_step_length = 1000000
         self.env_name = 'Riverraid-v0'
         self.model_path = './model/'
+        self.test_interval = 20
 
 if __name__ == '__main__':
     #env
