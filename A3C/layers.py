@@ -96,8 +96,13 @@ class Conv2d(Layer):
                 self.grad_weight = torch.add(weight_grad[:,:,:self.weight.shape[2],:self.weight.shape[2]], self.grad_weight)
                 all_conv_for_back.append(conv_for_back[:,:,:self.input[i].shape[2],:self.input[i].shape[2]])
         
-        self.bias.grad = self.grad_bias
-        self.weight.grad = self.grad_weight
+
+        if self.bias.grad is None:
+            self.bias.grad = self.grad_bias.clone()
+            self.weight.grad = self.grad_weight.clone()
+        else:
+            self.bias.grad.data = self.grad_bias.clone()
+            self.weight.grad.data = self.grad_weight.clone()
         return all_conv_for_back
 
 
@@ -162,8 +167,12 @@ class Linear(Layer):
             self.grad_bias = torch.add(top_grad.squeeze(0), self.grad_bias)
             ret.append(torch.matmul(top_grad,self.weight))
 
-        self.bias.grad = self.grad_bias
-        self.weight.grad = self.grad_weight
+        if self.bias.grad is None:
+            self.bias.grad = self.grad_bias.clone()
+            self.weight.grad = self.grad_weight.clone()
+        else:
+            self.bias.grad.data = self.grad_bias.clone()
+            self.weight.grad.data = self.grad_weight.clone()
         return ret
 
 
@@ -305,10 +314,16 @@ class LSTMCell(Layer):
             bottom_grad_h_list.append(bottom_grad_h)
             bottom_grad_c_list.append(bottom_grad_c)
 
-        self.weight_hh.grad = self.grad_weight_hh
-        self.weight_ih.grad = self.grad_weight_ih
-        self.bias_hh.grad = self.grad_bias_hh
-        self.bias_ih.grad = self.grad_bias_ih
+        if self.weight_hh.grad is None:
+            self.weight_hh.grad = self.grad_weight_hh.clone()
+            self.weight_ih.grad = self.grad_weight_ih.clone()
+            self.bias_hh.grad = self.grad_bias_hh.clone()
+            self.bias_ih.grad = self.grad_bias_ih.clone()
+        else:
+            self.weight_hh.grad.data = self.grad_weight_hh.clone()
+            self.weight_ih.grad.data = self.grad_weight_ih.clone()
+            self.bias_hh.grad.data = self.grad_bias_hh.clone()
+            self.bias_ih.grad.data = self.grad_bias_ih.clone()
 
         bottom_grad_inputs.reverse()
         bottom_grad_h_list.reverse()
