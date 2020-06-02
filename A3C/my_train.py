@@ -23,7 +23,7 @@ def ensure_shared_grads(model, shared_model):
         shared_param._grad = param.grad
 
 
-def grad_loss(values, logits, rewards, actions, params,R):
+def grad_loss(values, logits, rewards, actions, params, R):
     grad_value = []
     gae = torch.zeros(1, 1)
     grad_logits = []
@@ -97,9 +97,12 @@ def train(rank, args, shared_model, counter, lock, optimizer):
             prob = F.softmax(logit, dim=-1)
             log_prob = F.log_softmax(logit, dim=-1)
             entropy = -(log_prob * prob).sum(1, keepdim=True)
+            entropies.append(entropy)
 
             action = prob.multinomial(num_samples=1)
-            
+            actions.append(action)
+            log_prob = log_prob.gather(1, action)
+
             state, reward, done, _ = env.step(action.numpy())
 
             done = done or step_length >= args.max_step_length
@@ -117,9 +120,8 @@ def train(rank, args, shared_model, counter, lock, optimizer):
             values.append(value)
             log_probs.append(log_prob)
             rewards.append(reward)
-            entropies.append(entropy)
             logits.append(logit)
-            actions.append(action)
+            
 
             if done:
                 break
@@ -131,7 +133,6 @@ def train(rank, args, shared_model, counter, lock, optimizer):
             R = value
             
         values.append(R)
-        gae = torch.zeros(1, 1)
 
         optimizer.zero_grad()
         #compute loss and grad for value and logit
