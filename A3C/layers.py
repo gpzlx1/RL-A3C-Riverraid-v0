@@ -206,8 +206,8 @@ class LSTMCell(Layer):
 
     def init_weight(self, random=True, loc=0.0, scale=0.01):
         if random:
-            self.weight_ih = torch.Tensor(4 * hidden_size, input_size)
-            self.weight_hh = torch.Tensor(4 * hidden_size, hidden_size)
+            self.weight_ih = torch.Tensor(4 * self.hidden_size, self.input_size)
+            self.weight_hh = torch.Tensor(4 * self.hidden_size, self.hidden_size)
         else:
             self.weight_ih = torch.zeros(4 * self.hidden_size, self.input_size)
             self.weight_hh = torch.zeros(4 * self.hidden_size, self.hidden_size)
