@@ -96,7 +96,9 @@ def train(rank, args, shared_model, counter, lock, optimizer):
             step_length += 1
             value, logit, (hx, cx) = model.forward((state.unsqueeze(0), (hx, cx)))
 
+            #print(logit)
             prob = F.softmax(logit, dim=-1)
+            #print(prob)
             log_prob = F.log_softmax(logit, dim=-1)
             entropy = -(log_prob * prob).sum(1, keepdim=True)
             entropies.append(entropy)
