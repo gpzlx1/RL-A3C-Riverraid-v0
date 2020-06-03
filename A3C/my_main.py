@@ -18,7 +18,7 @@ class config(object):
         self.value_loss_coef = 0.5
         self.max_grad_norm = 50
         self.seed = 1
-        self.num_processes = 23
+        self.num_processes = 2
         self.num_steps = 20
         self.max_step_length = 1000000
         self.env_name = 'Riverraid-v0'
