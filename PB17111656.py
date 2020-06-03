@@ -95,7 +95,9 @@ class PB17111656(RL_alg):
 
 
     def explore(self, obs):
-        # currently, we only need to implement explore function
+        # how to train
+        # cd PB17111656
+        # python3 A3C/my_main.py
         raise NotImplementedError
 
     def test(self):
