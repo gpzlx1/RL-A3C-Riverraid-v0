@@ -5,7 +5,7 @@ import torch
 import torch.nn.functional as F
 
 from envs import create_atari_env
-from my_model import AcotrCritic
+from model import AcotrCritic
 
 
 def test(rank, args, shared_model, counter, log_path):

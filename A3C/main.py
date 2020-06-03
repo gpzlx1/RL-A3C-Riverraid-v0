@@ -5,9 +5,9 @@ import torch.multiprocessing as mp
 
 import my_optim
 from envs import create_atari_env
-from my_model import AcotrCritic
-from my_test import test
-from my_train import train
+from model import AcotrCritic
+from test import test
+from train import train
 
 class config(object):
     def __init__(self):
@@ -18,7 +18,7 @@ class config(object):
         self.value_loss_coef = 0.5
         self.max_grad_norm = 50
         self.seed = 1
-        self.num_processes = 23
+        self.num_processes = 2
         self.num_steps = 20
         self.max_step_length = 1000000
         self.env_name = 'Riverraid-v0'

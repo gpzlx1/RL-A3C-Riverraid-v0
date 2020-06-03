@@ -2,7 +2,7 @@ import torch
 import torch.nn.functional as F
 
 from envs import create_atari_env
-from my_model import AcotrCritic
+from model import AcotrCritic
 
 
 def clip_grad(parameters, max_norm, norm_type=2):
