@@ -14,8 +14,8 @@ def sigmoid(value):
 
 def tanh(value):
     value = value.double()
-    e_p = torch.exp(value)
-    e_n = torch.exp(-value)
+    e_p = torch.exp(value - torch.max(value))
+    e_n = torch.exp( - value - torch.max(value))
     sum_e = e_p + e_n
     return e_n.mul(2).div(sum_e).mul(-1).add(1).float()
 
