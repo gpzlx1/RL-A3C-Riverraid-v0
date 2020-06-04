@@ -21,7 +21,7 @@ class Layer(object):
 class Conv2d(Layer):
 
     def __init__(self,in_channels, out_channels, kernel_size,stride=1,
-                 padding=0,bias=True,groups = 1,dilation = 1):
+                 padding=0,bias=True,groups = 1,dilation = 1, train=True):
         self.in_channels = in_channels
         self.out_channels = out_channels
         self.kernel_size = (kernel_size,kernel_size)
@@ -29,6 +29,7 @@ class Conv2d(Layer):
         self.padding = (padding,padding)
         self.groups = groups
         self.dilation = (dilation,dilation)
+        self.train = train
    
         self.weight = torch.zeros(self.out_channels,self.in_channels // self.groups, *self.kernel_size)
 
@@ -74,7 +75,8 @@ class Conv2d(Layer):
         self.weight = weight
 
     def forward(self,input):
-        self.input.append(input)
+        if self.train:
+            self.input.append(input)
         return F.conv2d(input, self.weight, self.bias, self.stride,
                         self.padding, self.dilation, self.groups)
 
@@ -110,10 +112,10 @@ class Conv2d(Layer):
 
 class Linear(Layer):
 
-    def __init__(self,in_size,out_size,bias = True):
+    def __init__(self,in_size,out_size,bias = True, train=True):
         self.in_size = in_size
         self.out_size = out_size
-
+        self.train = train
         self.weight = torch.zeros(self.out_size,self.in_size)
         if bias:
             self.bias = torch.zeros(out_size)
@@ -155,7 +157,8 @@ class Linear(Layer):
         self.weight = weight
 
     def forward(self,input):
-        self.input.append(input)
+        if self.train:
+            self.input.append(input)
         return F.linear(input,self.weight,self.bias)
 
     def backward(self,top_grad_list):
@@ -178,10 +181,11 @@ class Linear(Layer):
 
 class LSTMCell(Layer):
 
-    def __init__(self, input_size, hidden_size, bias=True):
+    def __init__(self, input_size, hidden_size, bias=True, train=True):
         super(LSTMCell, self).__init__()
         self.input_size = input_size
         self.hidden_size = hidden_size
+        self.train = train
         self.bias = bias
         '''初始化所有参数为0'''
         self.weight_ih = torch.Tensor(4 * hidden_size, input_size)
@@ -240,10 +244,10 @@ class LSTMCell(Layer):
     def forward(self, inputs, hidden):
         # https://medium.com/@andre.holzner/lstm-cells-in-pytorch-fab924a78b1c
         hx, cx = hidden
-
-        self.hx.append(hx)
-        self.cx.append(cx)
-        self.pre_inputs.append(inputs)
+        if self.train:
+            self.hx.append(hx)
+            self.cx.append(cx)
+            self.pre_inputs.append(inputs)
 
         gates = F.linear(inputs, self.weight_ih, self.bias_ih) + F.linear(hx, self.weight_hh, self.bias_hh)
 
@@ -254,17 +258,18 @@ class LSTMCell(Layer):
         cellgate = torch.tanh(cellgate) # g_t 第三个
         outgate = torch.sigmoid(outgate) # o_t 第四个
 
-
-        self.ingate.append(ingate)
-        self.forgetgate.append(forgetgate)
-        self.cellgate.append(cellgate)
-        self.outgate.append(outgate)
+        if self.train:
+            self.ingate.append(ingate)
+            self.forgetgate.append(forgetgate)
+            self.cellgate.append(cellgate)
+            self.outgate.append(outgate)
 
         cy = forgetgate.mul(cx).add(ingate.mul(cellgate))
         hy = outgate.mul(torch.tanh(cy))
 
-        self.cy.append(cy)
-        self.hy.append(hy)
+        if self.train:
+            self.cy.append(cy)
+            self.hy.append(hy)
         return hy, cy
 
 

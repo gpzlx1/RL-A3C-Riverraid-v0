@@ -53,17 +53,17 @@ def grad_loss(values, logits, rewards, actions, params,R):
 
 
 class AcotrCritic(object):
-    def __init__(self, num_inputs, action_space):
-        self.conv1 = layers.Conv2d(num_inputs, 32, 3, stride=2, padding=1)
-        self.conv2 = layers.Conv2d(32, 32, 3, stride=2, padding=1)
-        self.conv3 = layers.Conv2d(32, 32, 3, stride=2, padding=1)
-        self.conv4 = layers.Conv2d(32, 32, 3, stride=2, padding=1)
+    def __init__(self, num_inputs, action_space, model_train=True):
+        self.conv1 = layers.Conv2d(num_inputs, 32, 3, stride=2, padding=1, train=model_train)
+        self.conv2 = layers.Conv2d(32, 32, 3, stride=2, padding=1, train=model_train)
+        self.conv3 = layers.Conv2d(32, 32, 3, stride=2, padding=1, train=model_train)
+        self.conv4 = layers.Conv2d(32, 32, 3, stride=2, padding=1, train=model_train)
 
-        self.lstm = layers.LSTMCell(32 * 3 * 3, 256)
+        self.lstm = layers.LSTMCell(32 * 3 * 3, 256, train=model_train)
 
         num_outputs = action_space.n
-        self.critic_linear = layers.Linear(256, 1)
-        self.actor_linear = layers.Linear(256, num_outputs)
+        self.critic_linear = layers.Linear(256, 1, train=model_train)
+        self.actor_linear = layers.Linear(256, num_outputs, train=model_train)
 
         # initial paramater
         self.conv1.init_weight(random=True)

@@ -74,7 +74,7 @@ class PB17111656(RL_alg):
         self.action_dim = ac_space.n
         self.action_dim = ac_space.n
         self.normalize = NormalizedEnv()
-        self.model = AcotrCritic(self.state_dim, self.ac_space)
+        self.model = AcotrCritic(self.state_dim, self.ac_space, model_train=False)
         self.hx = torch.zeros(1, 256)
         self.cx = torch.zeros(1, 256)
         #读取model文件夹的内容
