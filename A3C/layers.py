@@ -15,13 +15,14 @@ def sigmoid(value):
     sigmoid_value_n = exp_value.div(exp_value.add(1))
     return torch.where(value > 0, sigmoid_value_p, sigmoid_value_n).float()
 
+
 def tanh(value):
     value = value.double()
-    max_value = torch.max(value)
-    e_p = torch.exp(value - max_value)
-    e_n = torch.exp( - value - max_value)
-    sum_e = e_p + e_n
-    return e_n.mul(2).div(sum_e).mul(-1).add(1).float()
+    e_p = torch.exp(value.mul(2))
+    e_n = torch.exp(value.mul(-2))
+    tanh_n = (e_p - 1) / (e_p + 1)
+    tanh_p = (1 - e_n) / (1 + e_n)
+    return torch.where(value > 0, tanh_p, tanh_n).float()
 
 class Layer(object):
     def forward(self):
