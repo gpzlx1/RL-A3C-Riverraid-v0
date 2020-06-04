@@ -2,7 +2,6 @@ import math
 from collections import defaultdict
 from collections import abc as container_abcs
 from copy import deepcopy
-from itertools import chain
 import torch
 
 
@@ -30,7 +29,6 @@ class Optimizer(object):
     """
 
     def __init__(self, params, defaults):
-        torch._C._log_api_usage_once("python.optimizer")
         self.defaults = defaults
 
         if isinstance(params, torch.Tensor):
@@ -71,97 +69,12 @@ class Optimizer(object):
         format_string += ')'
         return format_string
 
-    def state_dict(self):
-        r"""Returns the state of the optimizer as a :class:`dict`.
-
-        It contains two entries:
-
-        * state - a dict holding current optimization state. Its content
-            differs between optimizer classes.
-        * param_groups - a dict containing all parameter groups
-        """
-        # Save ids instead of Tensors
-        def pack_group(group):
-            packed = {k: v for k, v in group.items() if k != 'params'}
-            packed['params'] = [id(p) for p in group['params']]
-            return packed
-        param_groups = [pack_group(g) for g in self.param_groups]
-        # Remap state to use ids as keys
-        packed_state = {(id(k) if isinstance(k, torch.Tensor) else k): v
-                        for k, v in self.state.items()}
-        return {
-            'state': packed_state,
-            'param_groups': param_groups,
-        }
-
-    def load_state_dict(self, state_dict):
-        r"""Loads the optimizer state.
-
-        Arguments:
-            state_dict (dict): optimizer state. Should be an object returned
-                from a call to :meth:`state_dict`.
-        """
-        # deepcopy, to be consistent with module API
-        state_dict = deepcopy(state_dict)
-        # Validate the state_dict
-        groups = self.param_groups
-        saved_groups = state_dict['param_groups']
-
-        if len(groups) != len(saved_groups):
-            raise ValueError("loaded state dict has a different number of "
-                             "parameter groups")
-        param_lens = (len(g['params']) for g in groups)
-        saved_lens = (len(g['params']) for g in saved_groups)
-        if any(p_len != s_len for p_len, s_len in zip(param_lens, saved_lens)):
-            raise ValueError("loaded state dict contains a parameter group "
-                             "that doesn't match the size of optimizer's group")
-
-        # Update the state
-        id_map = {old_id: p for old_id, p in
-                  zip(chain(*(g['params'] for g in saved_groups)),
-                      chain(*(g['params'] for g in groups)))}
-
-        def cast(param, value):
-            r"""Make a deep copy of value, casting all tensors to device of param."""
-            if isinstance(value, torch.Tensor):
-                # Floating-point types are a bit special here. They are the only ones
-                # that are assumed to always match the type of params.
-                if param.is_floating_point():
-                    value = value.to(param.dtype)
-                value = value.to(param.device)
-                return value
-            elif isinstance(value, dict):
-                return {k: cast(param, v) for k, v in value.items()}
-            elif isinstance(value, container_abcs.Iterable):
-                return type(value)(cast(param, v) for v in value)
-            else:
-                return value
-
-        # Copy state assigned to params (and cast tensors to appropriate types).
-        # State that is not assigned to params is copied as is (needed for
-        # backward compatibility).
-        state = defaultdict(dict)
-        for k, v in state_dict['state'].items():
-            if k in id_map:
-                param = id_map[k]
-                state[param] = cast(param, v)
-            else:
-                state[k] = v
-
-        # Update parameter groups, setting their 'params' value
-        def update_group(group, new_group):
-            new_group['params'] = group['params']
-            return new_group
-        param_groups = [
-            update_group(g, ng) for g, ng in zip(groups, saved_groups)]
-        self.__setstate__({'state': state, 'param_groups': param_groups})
 
     def zero_grad(self):
         r"""Clears the gradients of all optimized :class:`torch.Tensor` s."""
         for group in self.param_groups:
             for p in group['params']:
                 if p.grad is not None:
-                    p.grad.detach_()
                     p.grad.zero_()
 
     def step(self, closure):
@@ -268,69 +181,6 @@ class Adam(Optimizer):
         for group in self.param_groups:
             group.setdefault('amsgrad', False)
 
-    @torch.no_grad()
-    def step(self, closure=None):
-        """Performs a single optimization step.
-
-        Arguments:
-            closure (callable, optional): A closure that reevaluates the model
-                and returns the loss.
-        """
-        loss = None
-        if closure is not None:
-            with torch.enable_grad():
-                loss = closure()
-
-        for group in self.param_groups:
-            for p in group['params']:
-                if p.grad is None:
-                    continue
-                grad = p.grad
-                if grad.is_sparse:
-                    raise RuntimeError('Adam does not support sparse gradients, please consider SparseAdam instead')
-                amsgrad = group['amsgrad']
-
-                state = self.state[p]
-
-                # State initialization
-                if len(state) == 0:
-                    state['step'] = 0
-                    # Exponential moving average of gradient values
-                    state['exp_avg'] = torch.zeros_like(p, memory_format=torch.preserve_format)
-                    # Exponential moving average of squared gradient values
-                    state['exp_avg_sq'] = torch.zeros_like(p, memory_format=torch.preserve_format)
-                    if amsgrad:
-                        # Maintains max of all exp. moving avg. of sq. grad. values
-                        state['max_exp_avg_sq'] = torch.zeros_like(p, memory_format=torch.preserve_format)
-
-                exp_avg, exp_avg_sq = state['exp_avg'], state['exp_avg_sq']
-                if amsgrad:
-                    max_exp_avg_sq = state['max_exp_avg_sq']
-                beta1, beta2 = group['betas']
-
-                state['step'] += 1
-                bias_correction1 = 1 - beta1 ** state['step']
-                bias_correction2 = 1 - beta2 ** state['step']
-
-                if group['weight_decay'] != 0:
-                    grad = grad.add(p, alpha=group['weight_decay'])
-
-                # Decay the first and second moment running average coefficient
-                exp_avg.mul_(beta1).add_(grad, alpha=1 - beta1)
-                exp_avg_sq.mul_(beta2).addcmul_(grad, grad, value=1 - beta2)
-                if amsgrad:
-                    # Maintains the maximum of all 2nd moment running avg. till now
-                    torch.max(max_exp_avg_sq, exp_avg_sq, out=max_exp_avg_sq)
-                    # Use the max. for normalizing running avg. of gradient
-                    denom = (max_exp_avg_sq.sqrt() / math.sqrt(bias_correction2)).add_(group['eps'])
-                else:
-                    denom = (exp_avg_sq.sqrt() / math.sqrt(bias_correction2)).add_(group['eps'])
-
-                step_size = group['lr'] / bias_correction1
-
-                p.addcdiv_(exp_avg, denom, value=-step_size)
-
-        return loss
 
 
 class SharedAdam(Adam):

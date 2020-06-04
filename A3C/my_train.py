@@ -4,16 +4,18 @@ import torch.nn.functional as F
 from envs import create_atari_env
 from my_model import AcotrCritic
 
+def norm2(tensor):
+    tensor = tensor.pow(2)
+    return torch.sqrt(torch.sum(tensor))
 
-def clip_grad(parameters, max_norm, norm_type=2):
+def clip_grad(parameters, max_norm):
         parameters = list(filter(lambda p: p.grad is not None, parameters))
         max_norm = float(max_norm)
-        norm_type = float(norm_type)
-        total_norm = torch.norm(torch.stack([torch.norm(p.grad.detach(), norm_type) for p in parameters]), norm_type)
+        total_norm = norm2(torch.stack([norm2(p.grad) for p in parameters]))
         clip_coef = max_norm / (total_norm + 1e-6)
         if clip_coef < 1:
             for p in parameters:
-                p.grad.detach().mul_(clip_coef)
+                p.grad.mul_(clip_coef)
         return total_norm
 
 
@@ -38,7 +40,7 @@ def grad_loss(values, logits, rewards, actions, params, R):
         delta_t = rewards[i] + params.gamma * \
                   values[i + 1] - values[i]
         gae = gae * params.gamma * params.gae_lambda + delta_t
-        grad_log_probs = -gae.detach()
+        grad_log_probs = -gae
         grad_entropies = params.entropy_coef
         prob = F.softmax(logits[i], dim=-1)
         log_prob = F.log_softmax(logits[i], dim=-1)
@@ -63,7 +65,6 @@ def grad_loss(values, logits, rewards, actions, params, R):
 
 
 def train(rank, args, shared_model, counter, lock, optimizer):
-    torch.manual_seed(args.seed + rank)
 
     env = create_atari_env(args.env_name)
     env.seed(args.seed + rank)
