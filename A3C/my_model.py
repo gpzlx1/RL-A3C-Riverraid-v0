@@ -54,6 +54,7 @@ def grad_loss(values, logits, rewards, actions, params,R):
 
 class AcotrCritic(object):
     def __init__(self, num_inputs, action_space, model_train=True):
+        self.model_train = model_train
         self.conv1 = layers.Conv2d(num_inputs, 32, 3, stride=2, padding=1, train=model_train)
         self.conv2 = layers.Conv2d(32, 32, 3, stride=2, padding=1, train=model_train)
         self.conv3 = layers.Conv2d(32, 32, 3, stride=2, padding=1, train=model_train)
@@ -109,16 +110,20 @@ class AcotrCritic(object):
         inputs, (hx, cx) = inputs
 
         x = F.elu(self.conv1.forward(inputs))
-        self.y1.append(x)
+        if self.model_train:
+            self.y1.append(x)
 
         x = F.elu(self.conv2.forward(x))
-        self.y2.append(x)
+        if self.model_train:
+            self.y2.append(x)
 
         x = F.elu(self.conv3.forward(x))
-        self.y3.append(x)
+        if self.model_train:
+            self.y3.append(x)
 
         x = F.elu(self.conv4.forward(x))
-        self.y4.append(x)
+        if self.model_train:
+            self.y4.append(x)
 
         # x.shape = 1, 32, 3, 3
         x = x.view(-1, 32 * 3 * 3)
