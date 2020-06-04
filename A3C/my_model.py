@@ -27,7 +27,7 @@ def grad_loss(values, logits, rewards, actions, params,R):
         delta_t = rewards[i] + params.gamma * \
                   values[i + 1] - values[i]
         gae = gae * params.gamma * params.gae_lambda + delta_t
-        grad_log_probs = -gae.detach()
+        grad_log_probs = -gae
         grad_entropies = params.entropy_coef
         prob = F.softmax(logits[i], dim=-1)
         log_prob = F.log_softmax(logits[i], dim=-1)
