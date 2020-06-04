@@ -8,6 +8,17 @@ def normalized_columns_initializer(weights, std=1.0):
     out *= std / torch.sqrt(out.pow(2).sum(1, keepdim=True))
     return out
 
+def sigmoid(value):
+    value = value.double()
+    return torch.exp(-value).add(1).pow(-1).float()
+
+def tanh(value):
+    value = value.double()
+    e_p = torch.exp(value)
+    e_n = torch.exp(-value)
+    sum_e = e_p + e_n
+    return e_n.mul(2).div(sum_e).mul(-1).add(1).float()
+
 class Layer(object):
     def forward(self):
         raise NotImplementedError
@@ -253,10 +264,10 @@ class LSTMCell(Layer):
 
         ingate, forgetgate, cellgate, outgate = gates.chunk(4, 1)
 
-        ingate = torch.sigmoid(ingate) # i_t 第二个
-        forgetgate = torch.sigmoid(forgetgate) # f_t 第一个
-        cellgate = torch.tanh(cellgate) # g_t 第三个
-        outgate = torch.sigmoid(outgate) # o_t 第四个
+        ingate = sigmoid(ingate) # i_t 第二个
+        forgetgate = sigmoid(forgetgate) # f_t 第一个
+        cellgate = tanh(cellgate) # g_t 第三个
+        outgate = sigmoid(outgate) # o_t 第四个
 
         if self.train:
             self.ingate.append(ingate)
@@ -265,7 +276,7 @@ class LSTMCell(Layer):
             self.outgate.append(outgate)
 
         cy = forgetgate.mul(cx).add(ingate.mul(cellgate))
-        hy = outgate.mul(torch.tanh(cy))
+        hy = outgate.mul(tanh(cy))
 
         if self.train:
             self.cy.append(cy)
@@ -281,8 +292,8 @@ class LSTMCell(Layer):
         bottom_grad_h_list = []
         for i in reversed(range(len(top_grad_h))):
             top_grad_h_this_iteration = top_grad_h[i] + bottom_grad_h
-            grad_outgate = torch.tanh(self.cy[i]).mul(top_grad_h_this_iteration)
-            temp = torch.tanh(self.cy[i])
+            grad_outgate = tanh(self.cy[i]).mul(top_grad_h_this_iteration)
+            temp = tanh(self.cy[i])
             grad_c = (1 - temp.mul(temp)).mul(self.outgate[i]).mul(top_grad_h_this_iteration) + top_grad_c[i] + bottom_grad_c
 
             grad_forgetgate = self.cx[i].mul(grad_c)
