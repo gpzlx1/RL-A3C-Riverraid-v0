@@ -12,8 +12,6 @@ def test(rank, args, shared_model, counter, log_path):
 
     log_file = open(log_path + time.asctime(time.localtime()), "w")
 
-    torch.manual_seed(args.seed + rank)
-
     env = create_atari_env(args.env_name)
     env.seed(args.seed + rank)
 
