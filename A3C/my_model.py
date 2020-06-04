@@ -196,17 +196,6 @@ class AcotrCritic(object):
         for i in self.parameters():
             i.data.share_memory_()
 
-    def clip_grad(self,parameters, max_norm, norm_type=2):
-        parameters = list(filter(lambda p: p.grad is not None, parameters))
-        max_norm = float(max_norm)
-        norm_type = float(norm_type)
-        total_norm = torch.norm(torch.stack([torch.norm(p.grad.detach(), norm_type) for p in parameters]), norm_type)
-        clip_coef = max_norm / (total_norm + 1e-6)
-        if clip_coef < 1:
-            for p in parameters:
-                p.grad.detach().mul_(clip_coef)
-        return total_norm
-
     def save_model(self,filename = 'trained_parameter'):
         parameters = [p for p in self.parameters()]
         torch.save(parameters,'./'+filename)
