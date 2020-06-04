@@ -5,8 +5,9 @@ from envs import create_atari_env
 from my_model import AcotrCritic
 
 def norm2(tensor):
+    tensor = tensor.double()
     tensor = tensor.pow(2)
-    return torch.sqrt(torch.sum(tensor))
+    return torch.sqrt(torch.sum(tensor)).float()
 
 def clip_grad(parameters, max_norm):
         parameters = list(filter(lambda p: p.grad is not None, parameters))

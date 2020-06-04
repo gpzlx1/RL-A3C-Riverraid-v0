@@ -10,12 +10,16 @@ def normalized_columns_initializer(weights, std=1.0):
 
 def sigmoid(value):
     value = value.double()
-    return torch.exp(-value).add(1).pow(-1).float()
+    sigmoid_value_p = torch.exp(-value).add(1).pow(-1)
+    exp_value = torch.exp(value)
+    sigmoid_value_n = exp_value.div(exp_value.add(1))
+    return torch.where(value > 0, sigmoid_value_p, sigmoid_value_n).float()
 
 def tanh(value):
     value = value.double()
-    e_p = torch.exp(value - torch.max(value))
-    e_n = torch.exp( - value - torch.max(value))
+    max_value = torch.max(value)
+    e_p = torch.exp(value - max_value)
+    e_n = torch.exp( - value - max_value)
     sum_e = e_p + e_n
     return e_n.mul(2).div(sum_e).mul(-1).add(1).float()
 
