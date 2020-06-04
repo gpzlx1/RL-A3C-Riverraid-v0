@@ -1,6 +1,4 @@
 import os 
-
-import torch
 import torch.multiprocessing as mp 
 
 import my_optim
