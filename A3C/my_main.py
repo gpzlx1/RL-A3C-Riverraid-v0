@@ -23,7 +23,7 @@ class config(object):
         self.model_path = './model/'
         self.test_interval = 20
 
-if __name__ == '__main__':
+def main():
     #env
     args = config()
     mp.set_start_method("spawn")
@@ -53,3 +53,6 @@ if __name__ == '__main__':
         processes.append(p)
     for p in processes:
         p.join()
+
+if __name__ == '__main__':
+    main()
