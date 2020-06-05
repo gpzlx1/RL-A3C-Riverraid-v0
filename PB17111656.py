@@ -12,6 +12,7 @@ import cv2
 import sys
 sys.path.append('src/alg/PB17111656/A3C')
 from my_model import AcotrCritic
+from my_main import main
 
 def _process_frame42(frame):
     frame = frame[34:34 + 160, :160]
@@ -95,10 +96,7 @@ class PB17111656(RL_alg):
 
 
     def explore(self, obs):
-        # how to train
-        # cd PB17111656
-        # python3 A3C/my_main.py
-        raise NotImplementedError
+        main()
 
     def test(self):
         print('ok1')
