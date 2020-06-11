@@ -4,7 +4,11 @@
 
 ## layer design
 
-### Conv
+在本实验中，使用了四种网络结构:
+
+**Conv2d**、**Linear**、**LSTM**、**elu**
+
+### Conv2d
 
 * forward 原理 & 实现
 
@@ -62,7 +66,7 @@
   ***偏置的梯度：***直接求和即可。
 $$
   \frac{\partial Loss}{\partial b} = \sum \frac{\partial Loss}{O_{ij}}
-  $$
+$$
 
 ### Linear
 
@@ -173,9 +177,22 @@ $$
   
   ![img](https://miro.medium.com/max/322/1*DD_ocSrJ1Tvg6G5-8fft4Q.gif)
   
-  实现部分非常长，这里仅放链接 [LSTM backward](https://github.com/gpzlx1/ML/blob/master/A3C/layers.py#L292)
+  实现部分非常长，这里仅放实现代码的链接 [LSTM backward](https://github.com/gpzlx1/ML/blob/master/A3C/layers.py#L292)
 
+## elu
 
+激活函数elu非常简单
+
+* Forward:
+  $$
+  f(x) = \begin{cases} x, &\text{if } x >0; \\  \alpha(\exp{(x)} - 1) & \text{if } x \leq 0\end{cases}
+  $$
+
+* Backward:
+  $$
+  \frac{\partial f(x)}{\partial x} = \begin{cases} 1, &\text{if } x >0; \\  \alpha\exp{(x)}& \text{if } x \leq 0\end{cases}
+  $$
+  在本实验，使用 $\alpha = 1$.
 
 # Reference
 
