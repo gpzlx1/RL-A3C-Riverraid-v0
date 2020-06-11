@@ -60,7 +60,7 @@
   ***输入的梯度：***通过反卷积函数[conv_transpose2d](https://pytorch.org/docs/stable/nn.functional.html#conv-transpose2d)实现（反卷积的理解参考[这里](https://www.zhihu.com/question/48279880)，原理上文已描述过）
 
   ```
-  conv_for_back = F.conv_transpose2d(top_grad_t,self.weight,torch.zeros(self.in_channels),self.stride,self.padding,				(self.input[i].shape[2]-top_grad.shape[2])%2,self.groups,self.dilation)
+  conv_for_back = F.conv_transpose2d(top_grad_t, self.weight,torch.zeros(self.in_channels), self.stride, self.padding,				(self.input[i].shape[2]-top_grad.shape[2])%2, self.groups,self.dilation)
   ```
 
   ***偏置的梯度：***直接求和即可。
@@ -112,31 +112,31 @@ $$
   对	$tanh(\mathbf{x}) = \frac{e^{x} - e^{-x}}{e^{x} + e^{-x}} = \frac{e^{2x} - 1}{e^{2x} + 1} = \frac{1 - e^{-2x}}{1+ e^{-2x}}$, 对$\tanh$计算同样存在上溢或者下溢的问题。因此对正数，我们倾向于使用$\frac{1 - e^{-2x}}{1+ e^{-2x}}$计算；对于负数，我们倾向于使用$\frac{e^{x} - e^{-x}}{e^{x} + e^{-x}}$以提高计算精度
 
   ```python
-  #伪代码
-  if x > 0:
-      tanh = (1 - exp(-2 * x)) / (1 +  exp(-2 * x))
-  else:
-      tanh = (exp(2 * x) - 1) / (exp(2 * x) + 1)
-      
-  #实际代码
-  def tanh(value):
-      value = value.double()
-      e_p = torch.exp(value.mul(2))
-      e_n = torch.exp(value.mul(-2))
-      tanh_n = (e_p - 1) / (e_p + 1)
-      tanh_p = (1 - e_n) / (1 + e_n)
-      return torch.where(value > 0, tanh_p, tanh_n).float()
+  		#伪代码
+  		if x > 0:
+  		    tanh = (1 - exp(-2 * x)) / (1 +  exp(-2 * x))
+  		else:
+  		    tanh = (exp(2 * x) - 1) / (exp(2 * x) + 1)
+  		    
+  		#实际代码
+  		def tanh(value):
+  		    value = value.double()
+  		    e_p = torch.exp(value.mul(2))
+  		    e_n = torch.exp(value.mul(-2))
+  		    tanh_n = (e_p - 1) / (e_p + 1)
+  		    tanh_p = (1 - e_n) / (1 + e_n)
+  		    return torch.where(value > 0, tanh_p, tanh_n).float()
   ```
 
   对 $\sigma(x) = \frac{e^{x}}{1 + e^{x}}$同样也存在这个问题，因而我们要区分正负数，进行单独计算，以提高精度
 
   ```python
-  def sigmoid(value):
-      value = value.double()
-      sigmoid_value_p = torch.exp(-value).add(1).pow(-1)
-      exp_value = torch.exp(value)
-      sigmoid_value_n = exp_value.div(exp_value.add(1))
-      return torch.where(value > 0, sigmoid_value_p, sigmoid_value_n).float()
+  		def sigmoid(value):
+  		    value = value.double()
+  		    sigmoid_value_p = torch.exp(-value).add(1).pow(-1)
+  		    exp_value = torch.exp(value)
+  		    sigmoid_value_n = exp_value.div(exp_value.add(1))
+  		    return torch.where(value > 0, sigmoid_value_p, sigmoid_value_n).float()
   ```
 
   完成上诉设计，即可完成LSTM $Forward$设计，四个门:
@@ -148,17 +148,17 @@ $$
   ![img](https://miro.medium.com/max/470/1*bCG_X5bBbxr6_lE4dppZXg.gif)
 
   ```python
-  def forward(input, hidden):
-      hx, cx = hidden
-      gates = F.linear(input, w_ih, b_ih) + F.linear(hx, w_hh, b_hh)
-      ingate, forgetgate, cellgate, outgate = gates.chunk(4, 1)
-      ingate     = F.sigmoid(ingate)
-      forgetgate = F.sigmoid(forgetgate)
-      cellgate   = F.tanh(cellgate)
-      outgate    = F.sigmoid(outgate)
-      cy = (forgetgate * cx) + (ingate * cellgate)
-      hy = outgate * F.tanh(cy)
-      return hy, cy
+  		def forward(input, hidden):
+  		    hx, cx = hidden
+  		    gates = F.linear(input, w_ih, b_ih) + F.linear(hx, w_hh, b_hh)
+  		    ingate, forgetgate, cellgate, outgate = gates.chunk(4, 1)
+  		    ingate     = F.sigmoid(ingate)
+  		    forgetgate = F.sigmoid(forgetgate)
+  		    cellgate   = F.tanh(cellgate)
+  		    outgate    = F.sigmoid(outgate)
+  		    cy = (forgetgate * cx) + (ingate * cellgate)
+  		    hy = outgate * F.tanh(cy)
+  		    return hy, cy
   ```
 
 * Backward
@@ -179,7 +179,7 @@ $$
   
   实现部分非常长，这里仅放实现代码的链接 [LSTM backward](https://github.com/gpzlx1/ML/blob/master/A3C/layers.py#L292)
 
-## elu
+### elu
 
 激活函数elu非常简单
 
@@ -193,6 +193,103 @@ $$
   \frac{\partial f(x)}{\partial x} = \begin{cases} 1, &\text{if } x >0; \\  \alpha\exp{(x)}& \text{if } x \leq 0\end{cases}
   $$
   在本实验，使用 $\alpha = 1$.
+
+
+
+## Algothrim -- A3C
+
+### intro & theory
+
+### model design
+
+本小结将解释模型是如何设计的，整个模型如下图所示，共有七层。
+
+<img src="figures/model.png" style="zoom:48%;" />
+
+由于输入的state，实际上是图像信息，因而我们使用四层卷积层，来提取图片的信息，并使用`elu`作为激活函数。
+
+```python
+        x = F.elu(self.conv1.forward(inputs))
+        x = F.elu(self.conv2.forward(x))
+        x = F.elu(self.conv3.forward(x))
+        x = F.elu(self.conv4.forward(x))
+```
+
+考虑到，输入的state变化在时间尺度上有非常高的关联性，我们采用`LSTM`来提取时间尺度上的变化特征，使得网络能更好的提取state的特征。
+
+```python
+		x = x.view(-1, 32 * 3 * 3)
+        hx, cx = self.lstm.forward(x, (hx, cx))
+```
+
+最后是采用两个全连接层，其中一个输出`action advantage value`，另外一个输出`state value`。
+
+```python
+		#state value
+    	self.critic_linear.forward(x)
+        #advantage value
+		self.actor_linear.forward(x)
+```
+
+在前向传播过程中，我们要保存一些中间结果，这里就不展示这部分结构了。
+
+整个模型forward过程为：
+
+```python
+def forward(self, inputs):
+        inputs, (hx, cx) = inputs
+        x = F.elu(self.conv1.forward(inputs))
+        x = F.elu(self.conv2.forward(x))
+        x = F.elu(self.conv3.forward(x))
+        x = F.elu(self.conv4.forward(x))
+        # x.shape = 1, 32, 3, 3
+        x = x.view(-1, 32 * 3 * 3)
+        # x.shape = 1, 288
+        hx, cx = self.lstm.forward(x, (hx, cx))
+        x = hx
+        return self.critic_linear.forward(x), self.actor_linear.forward(x), (hx, cx)
+```
+
+由于我们已经完成各层反向传播，所以对模型的反向传播直接为各层的组装：
+
+```python
+def backward(self, top_grad_value, top_grad_logit):
+        grad_inputs = []
+
+        grad_critic_linear = self.critic_linear.backward(top_grad_value)
+        grad_actor_liner = self.actor_linear.backward(top_grad_logit)
+
+        top_grad_h = []
+
+        for i in range(len(grad_critic_linear)):
+            top_grad_h.append(grad_critic_linear[i] + grad_actor_liner[i])
+
+        top_grad_c = [0] * len(grad_critic_linear)
+
+        top_grad_conv4, _, _ = self.lstm.backward(top_grad_h, top_grad_c)
+
+        top_grad_conv4 = [element.view(-1, 32, 3, 3) for element in top_grad_conv4]
+
+        top_grad_conv4 = grad_elu(top_grad_conv4, self.y4)
+        top_grad_conv3 = self.conv4.backward(top_grad_conv4)
+
+        top_grad_conv3 = grad_elu(top_grad_conv3, self.y3)
+        top_grad_conv2 = self.conv3.backward(top_grad_conv3)
+
+        top_grad_conv2 = grad_elu(top_grad_conv2, self.y2)
+        top_grad_conv1 = self.conv2.backward(top_grad_conv2)
+
+        top_grad_conv1 = grad_elu(top_grad_conv1, self.y1)
+        grad_inputs = self.conv1.backward(top_grad_conv1)
+
+        return grad_inputs
+```
+
+### inputs normalization
+
+### reward design
+### loss computing
+
 
 # Reference
 
