@@ -10,7 +10,8 @@ Team:
 note: 
 
 * 本文档使用`Typora`撰写，其他markdown解释器可能存在编译错误。
-* 本项目以上传github，并将于19号00：00开放。
+* 本项目以上传github，并将于19号00：00开放，[RL-A3C-Riverraid-v0](https://github.com/gpzlx1/RL-A3C-Riverraid-v0)。
+
 
 ## Layer Design
 
@@ -224,7 +225,7 @@ $$
   
   
   
-  实现部分非常长，这里仅放实现代码的链接 [LSTM backward](https://github.com/gpzlx1/ML/blob/master/A3C/layers.py#L292)
+  实现部分非常长，这里仅放实现代码的链接 [LSTM backward](https://github.com/gpzlx1/RL-A3C-Riverraid-v0/blob/master/A3C/layers.py#L292)
 
 ### elu
 
@@ -567,7 +568,7 @@ $$
 
 
 
-实现过程参考[torch.optim.adam](https://github.com/pytorch/pytorch/blob/6e2bb1c05442010aff90b413e21fce99f0393727/torch/optim/adam.py)，实现部分为[my_optim.py](https://github.com/gpzlx1/ML/blob/master/A3C/my_optim.py)
+实现过程参考[torch.optim.adam](https://github.com/pytorch/pytorch/blob/6e2bb1c05442010aff90b413e21fce99f0393727/torch/optim/adam.py)，实现部分为[my_optim.py](https://github.com/gpzlx1/RL-A3C-Riverraid-v0/blob/master/A3C/my_optim.py)
 
 ### Others
 
