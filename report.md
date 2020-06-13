@@ -548,7 +548,13 @@ $$
 
 ## Result
 
+A3C具有优秀的训练速度和性能，训练二十四小时即可完成收敛，平均100-episode reward为10000+。
+
 ![](figures/learning_curve_plot.png)
+
+单局演示：
+
+![](figures/result.gif)
 
 ## Reference
 
