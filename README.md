@@ -1,7 +1,7 @@
 # RL-A3C-Riverraid-v0
 A simple implementation of A3C for atari game `Riverraid-v0` from scratch. 
 * Only use torch data structure and some commonly used torch functions.
-* implement my own Conv2d, Linear and LSTM layers, including forward and backward.
+* Implement my own Conv2d, Linear and LSTM layers, including forward and backward.
 ## How to train
 ```shell
   virtualenv --python=python3 venv
