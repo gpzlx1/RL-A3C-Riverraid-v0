@@ -41,39 +41,40 @@ note:
   
   
   
+
 ***首先求 $E$ 对权重 $F$ 的梯度***：
-  $$
+$$
 \frac{\partial E}{\partial F_{11}} = \frac{\partial E}{\partial \mathbf{O}}^{\top}\frac{\partial \mathbf{O}}{\partial F_{11}}​= \frac{\partial E}{\partial O_{11}}X_{11}+\frac{\partial E}{\partial O_{12}}X_{12}+\frac{\partial E}{\partial O_{21}}X_{21}+\frac{\partial E}{\partial O_{22}}X_{22}
-  $$
+$$
 
   以此类推，可以看出， $E$ 对权重 $F$ 的梯度也可以通过卷积运算求出
-  
+
   <center>
       <img src="figures/2.jpg" style="zoom:67%;" />
   </center>
   
 
-  
+
 ***同理，考虑  $E$ 对输入 $X$ 的梯度***：
-  $$
+$$
 \frac{\partial E}{\partial X_{11}} = \frac{\partial E}{\partial \mathbf{O}}^{\top}\frac{\partial \mathbf{O}}{\partial X_{11}}​= \frac{\partial E}{\partial O_{11}}F_{11}+\frac{\partial E}{\partial O_{12}}0+\frac{\partial E}{\partial O_{21}}0+\frac{\partial E}{\partial O_{22}}0
-  $$
+$$
   以此类推，我们发现可以将卷积核（权重$F$）旋转180°，并与 $\frac{\partial E}{\partial \mathbf{O}}$ （补0）进行卷积从而得到结果
-  
+
   <center>
       <img src="figures/3.JPG" style="zoom:67%;" />
   
+
   
-  
-  
-  
+
+
   ***而当$stride>1$ 时***，需要将原本的卷积操作换为[空洞卷积](https://www.jianshu.com/p/f743bd9041b3)，dilation 的值即为 stride（将卷积核设为为$1\times1$即可证明）
-  
+
   <center>
       <img src="figures/4.jpg" style="zoom:50%;" />
   </center>
   
-  
+
 
 
 
@@ -281,30 +282,30 @@ A3C,即 Asynchronous advantage actor-critic，异步优势动作评价算法。�
 </center>
   
 
-  
+
 **接下来考虑如何对参数进行更新，来优化策略**
+
   
-  
-  
+
   假设需要优化的目标是当前策略下，初始状态reward的期望：
-  $$
+$$
   \rho(\pi) = E(\sum_{t=1}^{\infty}\gamma^{t-1}r_t\mid s_0,\pi )
-  $$
+$$
   我们有如下结论（证明见此[论文](https://homes.cs.washington.edu/~todorov/courses/amath579/reading/PolicyGradient.pdf)），其中$Q^\pi(s,a)$可以取不同的价值函数:
-  $$
+$$
   \frac{\partial \rho}{\partial \theta} = \sum_s d^{\pi}(s)\sum_a \frac{\partial \pi_\theta(s,a)}{\partial \theta}Q^\pi(s,a)
-  $$
+$$
   再由等式$\frac{\partial \pi_\theta(s,a)}{\partial \theta} = \pi_\theta(s,a)\nabla_\theta\log\pi_\theta(s,a)$ 可得
-  $$
+$$
 \frac{\partial \rho}{\partial \theta} = \mathbb{E}_{\pi_\theta}[\nabla_\theta\log\pi_\theta(s,a)Q^\pi(s,a)]
-  $$
-  
-  
+$$
+
+
   因此，策略的参数更新公式为
-  $$
+$$
   \theta = \theta +  \alpha\nabla_\theta\log\pi_\theta(s,a)Q^\pi(s,a)
-  $$
-  
+$$
+
 * A2C (Advantage Actor Critic)
 
   在上述框架中，采用优势函数 $A_\pi(s,a) = Q_\pi(s,a)-V_\pi(s)$ 作为 Critic的价值函数，就得到A2C算法。从而策略的更新公式变为
@@ -628,36 +629,31 @@ A3C具有优秀的训练速度和性能，训练二十四小时即可完成收�
 
 ## Reference
 
-https://medium.com/@aidangomez/let-s-do-this-f9b699de31d9
-
-[https://baike.baidu.com/item/卷积神经网络](https://baike.baidu.com/item/卷积神经网络)
-
-[https://pytorch.org/docs/stable/nn.functional.html](https://pytorch.org/docs/stable/nn.functional.html)
-
-[http://staff.ustc.edu.cn/~jwangx/classes/210709/notes/Lec10.pdf](http://staff.ustc.edu.cn/~jwangx/classes/210709/notes/Lec10.pdf)
-
-[https://www.jianshu.com/p/f743bd9041b3](https://www.jianshu.com/p/f743bd9041b3)
-
-[https://www.zhihu.com/question/48279880](https://www.zhihu.com/question/48279880)
-
-
-
-[https://homes.cs.washington.edu/~todorov/courses/amath579/reading/PolicyGradient.pdf](https://homes.cs.washington.edu/~todorov/courses/amath579/reading/PolicyGradient.pdf)
-
-[https://zhuanlan.zhihu.com/p/62100741](https://zhuanlan.zhihu.com/p/62100741)
-
-[https://www.cnblogs.com/pinard/p/10272023.html](https://www.cnblogs.com/pinard/p/10272023.html)
-
-[https://www.cnblogs.com/wangxiaocvpr/p/8110120.html](https://www.cnblogs.com/wangxiaocvpr/p/8110120.html)
-
-
-
-[http://staff.ustc.edu.cn/~jwangx/classes/210709/notes/Lec09.pdf](http://staff.ustc.edu.cn/~jwangx/classes/210709/notes/Lec09.pdf)
-
-[https://hackernoon.com/intuitive-rl-intro-to-advantage-actor-critic-a2c-4ff545978752](https://hackernoon.com/intuitive-rl-intro-to-advantage-actor-critic-a2c-4ff545978752)
-
 [pytorch-a3c](https://github.com/ikostrikov/pytorch-a3c)
 
 [torch.optim.adam](https://github.com/pytorch/pytorch/blob/6e2bb1c05442010aff90b413e21fce99f0393727/torch/optim/adam.py)
 
 [Welcome to Deep Reinforcement Learning Part 1 : DQN](https://towardsdatascience.com/welcome-to-deep-reinforcement-learning-part-1-dqn-c3cab4d41b6b)
+
+[百度百科：卷积神经网络](https://baike.baidu.com/item/卷积神经网络)
+
+[pytorch官方文档：nn.functional](https://pytorch.org/docs/stable/nn.functional.html)
+
+[机器学习课件/Lec10.pdf](http://staff.ustc.edu.cn/~jwangx/classes/210709/notes/Lec10.pdf)
+
+[空洞卷积理解](https://www.jianshu.com/p/f743bd9041b3)
+
+[怎样通俗易懂地解释反卷积？](https://www.zhihu.com/question/48279880)
+
+[Policy Gradient Methods for Reinforcement Learning with Function Approximation](https://homes.cs.washington.edu/~todorov/courses/amath579/reading/PolicyGradient.pdf)
+
+[AC、A2C、A3C算法](https://zhuanlan.zhihu.com/p/62100741)
+
+[Actor-Critic](https://www.cnblogs.com/pinard/p/10272023.html)
+
+[深度强化学习算法 A3C](https://www.cnblogs.com/wangxiaocvpr/p/8110120.html)
+
+[机器学习课件/Lec09.pdf](http://staff.ustc.edu.cn/~jwangx/classes/210709/notes/Lec09.pdf)
+
+[Intuitive RL: Intro to Advantage-Actor-Critic (A2C)](https://hackernoon.com/intuitive-rl-intro-to-advantage-actor-critic-a2c-4ff545978752)
+
