@@ -35,29 +35,45 @@ note:
 
   用一个[简单的例子](http://staff.ustc.edu.cn/~jwangx/classes/210709/notes/Lec10.pdf)说明其原理（暂不考虑stride，下文补充）:
 
-  ![例子](figures/1.jpg)
-
-  ***首先求 $E$ 对权重 $F$ 的梯度***：
+  <center>
+    <img src="figures/1.jpg" alt="例子" style="zoom:67%;" />
+  </center>
+  
+  
+  
+***首先求 $E$ 对权重 $F$ 的梯度***：
   $$
-  \frac{\partial E}{\partial F_{11}} = \frac{\partial E}{\partial \mathbf{O}}^{\top}\frac{\partial \mathbf{O}}{\partial F_{11}}​= \frac{\partial E}{\partial O_{11}}X_{11}+\frac{\partial E}{\partial O_{12}}X_{12}+\frac{\partial E}{\partial O_{21}}X_{21}+\frac{\partial E}{\partial O_{22}}X_{22}
+\frac{\partial E}{\partial F_{11}} = \frac{\partial E}{\partial \mathbf{O}}^{\top}\frac{\partial \mathbf{O}}{\partial F_{11}}​= \frac{\partial E}{\partial O_{11}}X_{11}+\frac{\partial E}{\partial O_{12}}X_{12}+\frac{\partial E}{\partial O_{21}}X_{21}+\frac{\partial E}{\partial O_{22}}X_{22}
   $$
 
   以此类推，可以看出， $E$ 对权重 $F$ 的梯度也可以通过卷积运算求出
-
-  ![](figures/2.jpg)
-
-  ***同理，考虑  $E$ 对输入 $X$ 的梯度***：
-  $$
-  \frac{\partial E}{\partial X_{11}} = \frac{\partial E}{\partial \mathbf{O}}^{\top}\frac{\partial \mathbf{O}}{\partial X_{11}}​= \frac{\partial E}{\partial O_{11}}F_{11}+\frac{\partial E}{\partial O_{12}}0+\frac{\partial E}{\partial O_{21}}0+\frac{\partial E}{\partial O_{22}}0
-  $$
-  以此类推，我们发现可以将卷积核（权重$F$）旋转180°，并与 $\frac{\partial E}{\partial \mathbf{O}}$ （补0）进行卷积从而得到结果
-  ![](figures/3.JPG)
-
+  
+  <center>
+      <img src="figures/2.jpg" style="zoom:67%;" />
+  </center>
   
 
+  
+***同理，考虑  $E$ 对输入 $X$ 的梯度***：
+  $$
+\frac{\partial E}{\partial X_{11}} = \frac{\partial E}{\partial \mathbf{O}}^{\top}\frac{\partial \mathbf{O}}{\partial X_{11}}​= \frac{\partial E}{\partial O_{11}}F_{11}+\frac{\partial E}{\partial O_{12}}0+\frac{\partial E}{\partial O_{21}}0+\frac{\partial E}{\partial O_{22}}0
+  $$
+  以此类推，我们发现可以将卷积核（权重$F$）旋转180°，并与 $\frac{\partial E}{\partial \mathbf{O}}$ （补0）进行卷积从而得到结果
+  
+  <center>
+      <img src="figures/3.JPG" style="zoom:67%;" />
+  
+  
+  
+  
+  
   ***而当$stride>1$ 时***，需要将原本的卷积操作换为[空洞卷积](https://www.jianshu.com/p/f743bd9041b3)，dilation 的值即为 stride（将卷积核设为为$1\times1$即可证明）
-
-  ![](figures/4.jpg)
+  
+  <center>
+      <img src="figures/4.jpg" style="zoom:50%;" />
+  </center>
+  
+  
 
 
 
@@ -109,9 +125,11 @@ $$
 
 在使用深度学习处理时序问题时，RNN时最常使用的模型之一。RNN能够有效的将之前的时间片信息用于计算当前时间片的输入。其中Long Short Term Memory (LSTM)是一种常见且有效的神经网络。由于`Riverraid-v0`虽然`action`是离散的，但是其状态在时间尺度上有非常强的相关性，所以考虑使用LSTM进行训练，能取得不错的成果。
 
+<center>
+    <img src="https://miro.medium.com/max/1631/0*tOgVu5w22Jg1yerG.png" alt="img" style="zoom:50%;" />
+</center>
 
 
-<img src="https://miro.medium.com/max/1631/0*tOgVu5w22Jg1yerG.png" alt="img" style="zoom:67%;" />
 
 假设对`t`轮，对LSTM输入为$\mathbf{x}_t$，$\mathbf{h}_{t-1}$、$\mathbf{c}_{t-1}$，下面我们考虑$Forward$和$Backward$
 
@@ -151,11 +169,19 @@ $$
 
   完成上诉设计，即可完成LSTM $Forward$设计，四个门:
 
-  ![img](https://miro.medium.com/max/620/1*Bqk-Ejg2WQzzngwKwiYvSw.gif)
+  <center>
+      <img src="https://miro.medium.com/max/620/1*Bqk-Ejg2WQzzngwKwiYvSw.gif" alt="img" />
+  </center>
+
+  
 
   因此对当前LSTM最终输出为：
 
-  ![img](https://miro.medium.com/max/470/1*bCG_X5bBbxr6_lE4dppZXg.gif)
+  <center>
+      <img src="https://miro.medium.com/max/620/1*Bqk-Ejg2WQzzngwKwiYvSw.gif" alt="img" style="zoom:100%;" />
+  </center>
+
+  
 
   ```python
   		def forward(input, hidden):
@@ -181,11 +207,21 @@ $$
 
   根据LSTM前向传播计算LSTM的方向传播:
   
-  ![img](https://miro.medium.com/max/742/1*cWEZJfk8ikLWj4xUS9T64w.gif)
+  <center>
+      <img src="https://miro.medium.com/max/742/1*cWEZJfk8ikLWj4xUS9T64w.gif" alt="img" style="zoom:100%;" />
+  </center>
+  
+  
   
   最终我们更新的权重为：
   
-  ![img](https://miro.medium.com/max/322/1*DD_ocSrJ1Tvg6G5-8fft4Q.gif)
+  <center>
+      <img src="https://miro.medium.com/max/322/1*DD_ocSrJ1Tvg6G5-8fft4Q.gif" alt="img" style="zoom:100%;" />
+  </center>
+  
+  
+  
+  
   
   实现部分非常长，这里仅放实现代码的链接 [LSTM backward](https://github.com/gpzlx1/ML/blob/master/A3C/layers.py#L292)
 
@@ -240,13 +276,16 @@ A3C,即 Asynchronous advantage actor-critic，异步优势动作评价算法。�
   q(s,a,w) \approx q_\pi(s,a)
   $$
   
-
-  ![](figures/5.jpg)
-
-  **接下来考虑如何对参数进行更新，来优化策略**
-
+<center>
+      <img src="figures/5.jpg" style="zoom:60%;" />
+</center>
   
 
+  
+**接下来考虑如何对参数进行更新，来优化策略**
+  
+  
+  
   假设需要优化的目标是当前策略下，初始状态reward的期望：
   $$
   \rho(\pi) = E(\sum_{t=1}^{\infty}\gamma^{t-1}r_t\mid s_0,\pi )
@@ -257,10 +296,10 @@ A3C,即 Asynchronous advantage actor-critic，异步优势动作评价算法。�
   $$
   再由等式$\frac{\partial \pi_\theta(s,a)}{\partial \theta} = \pi_\theta(s,a)\nabla_\theta\log\pi_\theta(s,a)$ 可得
   $$
-  \frac{\partial \rho}{\partial \theta} = \mathbb{E}_{\pi_\theta}[\nabla_\theta\log\pi_\theta(s,a)Q^\pi(s,a)]
+\frac{\partial \rho}{\partial \theta} = \mathbb{E}_{\pi_\theta}[\nabla_\theta\log\pi_\theta(s,a)Q^\pi(s,a)]
   $$
   
-
+  
   因此，策略的参数更新公式为
   $$
   \theta = \theta +  \alpha\nabla_\theta\log\pi_\theta(s,a)Q^\pi(s,a)
@@ -288,15 +327,27 @@ A3C,即 Asynchronous advantage actor-critic，异步优势动作评价算法。�
 
   在传统的A2C上，A3C采用了异步的方式，从而打破数据间的相关性，解决了AC算法难以收敛的问题：
 
-  ![](figures/7.jpg)
-
-  ​		下面是A3C的伪代码![](figures/6.jpg)
+  <center>
+    <img src="figures/7.jpg" style="zoom:60%;" />
+  </center>
+  
+  
+  
+  ​		下面是A3C的伪代码
+  
+  <center>
+      <img src="figures/6.jpg" style="zoom:80%;" />
+  </center>
 
 ### Model Design
 
 本小结将解释模型是如何设计的，整个模型如下图所示，共有七层。
 
-<img src="figures/model.png" style="zoom:48%;" />
+<center>
+    <img src="figures/model.png" style="zoom:48%;" />
+</center>
+
+
 
 由于输入的state，实际上是图像信息，因而我们使用四层卷积层，来提取图片的信息，并使用`elu`作为激活函数。
 
@@ -509,7 +560,11 @@ $$
 
 算法伪代码：
 
-![img](https://upload-images.jianshu.io/upload_images/10046814-c2db68e06531e759.png?imageMogr2/auto-orient/strip|imageView2/2/w/897/format/webp)
+<center>
+    <img src="https://upload-images.jianshu.io/upload_images/10046814-c2db68e06531e759.png?imageMogr2/auto-orient/strip|imageView2/2/w/897/format/webp" alt="img" style="zoom:80%;" />
+</center>
+
+
 
 实现过程参考[torch.optim.adam](https://github.com/pytorch/pytorch/blob/6e2bb1c05442010aff90b413e21fce99f0393727/torch/optim/adam.py)，实现部分为[my_optim.py](https://github.com/gpzlx1/ML/blob/master/A3C/my_optim.py)
 
@@ -560,11 +615,16 @@ $$
 
 A3C具有优秀的训练速度和性能，训练二十四小时即可完成收敛，平均100-episode reward为10000+。
 
-![](figures/learning_curve_plot.png)
+<center>
+     <img src="figures/learning_curve_plot.png" style="zoom:72%;" />
 
 单局演示：
 
-![](figures/result.gif)
+<center>
+    <img src="figures/result.gif" style="zoom:150%;" />
+</center>
+
+
 
 ## Reference
 
