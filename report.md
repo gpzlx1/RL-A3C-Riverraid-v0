@@ -369,9 +369,66 @@ A3C,即 Asynchronous advantage actor-critic，异步优势动作评价算法。�
 
 ### Inputs Normalization
 
+由于输入的是图像信息，具有高度信息冗余，所以我们需要对图像进行一定操作，提高信息密度减少计算量，并规约化，核心操作为
 
+1. crop & resize
 
-### Reward Design
+   首先先裁掉边框信息，然后分两次resize，以提高保留的信息密度
+
+   ```python
+   	frame = frame[34:34 + 160, :160]
+       frame = cv2.resize(frame, (80, 80))
+       frame = cv2.resize(frame, (42, 42))
+   ```
+
+2. channel merge
+
+   同时由于图像是RGB图像，我们并不需要颜色信息，因而可以对channel进行合并，减小计算量
+
+   ```python
+   	frame = frame.mean(2, keepdims=True)
+   ```
+
+3.  normalize
+
+   我们需要将输入数据调整为正态分布，但是由于并不清楚，总体方差和平均值是多少，因而我们采用采样估计的策略。
+
+   ```python
+   	frame *= (1.0 / 255.0)
+       
+       class NormalizedEnv(gym.ObservationWrapper):
+       	def __init__(self, env=None):
+       	    super(NormalizedEnv, self).__init__(env)
+       	    self.state_mean = 0
+       	    self.state_std = 0
+       	    self.alpha = 0.9999
+       	    self.num_steps = 0
+   	
+       	def observation(self, observation):
+       	    self.num_steps += 1
+               #更新均值
+       	    self.state_mean = self.state_mean * self.alpha + \
+       	        observation.mean() * (1 - self.alpha)
+       	    #更新标准差
+               self.state_std = self.state_std * self.alpha + \
+       	        observation.std() * (1 - self.alpha)
+   	
+       	    unbiased_mean = self.state_mean / (1 - pow(self.alpha, self.num_steps))
+       	    unbiased_std = self.state_std / (1 - pow(self.alpha, self.num_steps))
+   	
+       	    return (observation - unbiased_mean) / (unbiased_std + 1e-8)
+   ```
+
+   
+
+### Reward design
+
+根据[Welcome to Deep Reinforcement Learning Part 1 : DQN](https://towardsdatascience.com/welcome-to-deep-reinforcement-learning-part-1-dqn-c3cab4d41b6b)采用Clipping rewards 设计可以提高模型性能，由于`Riverraid-v0`中reward全为非负，因而我们可以clip reward为 0 和 1。
+
+```python
+ 		reward = max(min(reward, 1), -1)
+```
+
 ### Loss Compute
 
 $reward_i$ 为单步的reward；$v_i$为Critic得到的预估价值；$logprob_i$为选择的action的概率的对数（经过softmax和log处理）
@@ -436,6 +493,59 @@ $$
   $$
   Entropy同理
 
+### Update Gradient
+
+我们使用`Adam`优化器进行梯度更新：
+
+算法伪代码：
+
+![img](https://upload-images.jianshu.io/upload_images/10046814-c2db68e06531e759.png?imageMogr2/auto-orient/strip|imageView2/2/w/897/format/webp)
+
+实现过程参考[torch.optim.adam](https://github.com/pytorch/pytorch/blob/6e2bb1c05442010aff90b413e21fce99f0393727/torch/optim/adam.py)，实现部分为[my_optim.py](https://github.com/gpzlx1/ML/blob/master/A3C/my_optim.py)
+
+### Others
+
+整个目录结构如下：
+
+```shell
+├── A3C						#A3C实现代码
+│   ├── envs.py				#处理输入数据
+│   ├── layers.py			#每层网络设计
+│   ├── my_main.py			
+│   ├── my_model.py			#模型设计
+│   ├── my_optim.py			#optimizer实现
+│   ├── my_test.py			#测试进程	
+│   └── my_train.py			#训练进程
+├── PB17111656.py			#对外测试接口
+├── figures
+├── log						#训练日志存放
+├── model					#model存放
+├── report.md
+├── requirement.txt
+├── rl_configs.py
+└── todo.txt
+```
+
+超参数设计（参考[pytorch-a3c](https://github.com/ikostrikov/pytorch-a3c)）：
+
+```python
+	class config(object):
+	    def __init__(self):
+	        self.lr = 0.0001						#学习率
+	        self.gamma = 0.99						#A3C 计算loss所用参数
+	        self.gae_lambda = 1.00
+	        self.entropy_coef = 0.01
+	        self.value_loss_coef = 0.5
+	        self.max_grad_norm = 50					#用于clip gradient, 以防梯度爆炸
+	        self.seed = 1
+	        self.num_processes = 23					#训练使用进程
+	        self.num_steps = 20						#每num_steps个acitons, 训练进程对中心模型进行一次参数更新
+	        self.max_step_length = 1000000			#最大训练步长
+	        self.env_name = 'Riverraid-v0'			#训练任务
+	        self.model_path = './model/'			#模型存储位置
+	        self.test_interval = 20					#测试进程每隔20秒，测试一次当前中心模型性能
+```
+
 ## Result
 
 ![](figures/learning_curve_plot.png)
@@ -470,3 +580,8 @@ https://medium.com/@aidangomez/let-s-do-this-f9b699de31d9
 
 [https://hackernoon.com/intuitive-rl-intro-to-advantage-actor-critic-a2c-4ff545978752](https://hackernoon.com/intuitive-rl-intro-to-advantage-actor-critic-a2c-4ff545978752)
 
+[pytorch-a3c](https://github.com/ikostrikov/pytorch-a3c)
+
+[torch.optim.adam](https://github.com/pytorch/pytorch/blob/6e2bb1c05442010aff90b413e21fce99f0393727/torch/optim/adam.py)
+
+[Welcome to Deep Reinforcement Learning Part 1 : DQN](https://towardsdatascience.com/welcome-to-deep-reinforcement-learning-part-1-dqn-c3cab4d41b6b)
