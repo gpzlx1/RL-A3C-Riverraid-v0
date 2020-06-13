@@ -21,4 +21,4 @@ No implementation. By you can implement your test file refer to [PB17111656.py](
 ![100](https://github.com/gpzlx1/ML/blob/master/figures/learning_curve_plot.png)
 <center>
 ![gif](https://github.com/gpzlx1/ML/blob/master/figures/result.gif)
-<\center>
+</center>
