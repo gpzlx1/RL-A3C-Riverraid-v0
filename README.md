@@ -14,6 +14,7 @@ A simple implementation of A3C for atari game `Riverraid-v0` from scratch.
   python A3C/my_main.py
 ```
 The detail hyperparameters are configed by python class `Config` in `my_main.py`.
+Train model and log would be stored in `./model` and `./log` separately.
 ## How to test
 No implementation. By you can implement your test file refer to [PB17111656.py](https://github.com/gpzlx1/ML/blob/master/PB17111656.py).
 ## Result
