@@ -2,6 +2,16 @@
 
 [TOC]
 
+Team: 
+
+* 龚平，Ping Gong，PB17030808，贡献55%
+* 罗极羽，Jiyu Luo，PB17111656，贡献45%
+
+note: 
+
+* 本文档使用`Typora`撰写，其他markdown解释器可能存在编译错误。
+* 本项目以上传github，并将于19号00：00开放。
+
 ## Layer Design
 
 在本实验中，使用了四种网络结构:
