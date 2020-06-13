@@ -2,7 +2,7 @@
 
 [TOC]
 
-## layer design
+## Layer Design
 
 在本实验中，使用了四种网络结构:
 
@@ -196,11 +196,93 @@ $$
 
 
 
-## Algothrim -- A3C
+## Algothrim --A3C
 
 ### intro & theory
 
-### model design
+A3C,即 Asynchronous advantage actor-critic，异步优势动作评价算法。在具体了解A3C前，我们要先了解一下Actor-Critic 框架和A2C 算法。
+
+* *DQN vs A3C*
+
+  较为复杂的游戏中，DQN一次只能探索很少的空间，从而更新Q值的速度很慢，需要很长时间的训练才能达到不错的表现。
+
+  
+
+  相比之下，A3C算法将policy-base和value-based相结合，一方面避免了蒙特卡洛算法（policy-based）方差较大的问题，另一方面在训练效果和速度上也优于DQN（value-based）。
+
+  
+
+* **Actor-Critic**
+
+  Actor-Critic 包括两部分：Actor 负责生成动作(Action)并和环境交互。而Critic负责评估Actor的表现，并指导Actor下一阶段的动作。
+
+  
+
+  Actor（policy based）：即策略$\pi(a|s)$，我们用神经网络进行近似（s = state，a = action）
+  $$
+  \pi_\theta(s,a) \approx \pi(a|s)
+  $$
+  
+
+  Critic（value based）：即价值函数$v_\pi(s)$和$q_\pi(s,a)$，同样用神经网络近似
+  $$
+  v(s,w) \approx v_\pi(s)\\
+  q(s,a,w) \approx q_\pi(s,a)
+  $$
+  
+
+  ![](figures/5.jpg)
+
+  **接下来考虑如何对参数进行更新，来优化策略**
+
+  
+
+  假设需要优化的目标是当前策略下，初始状态reward的期望：
+  $$
+  \rho(\pi) = E(\sum_{t=1}^{\infty}\gamma^{t-1}r_t\mid s_0,\pi )
+  $$
+  我们有如下结论（证明见此[论文](https://homes.cs.washington.edu/~todorov/courses/amath579/reading/PolicyGradient.pdf)），其中$Q^\pi(s,a)$可以取不同的价值函数:
+  $$
+  \frac{\partial \rho}{\partial \theta} = \sum_s d^{\pi}(s)\sum_a \frac{\partial \pi_\theta(s,a)}{\partial \theta}Q^\pi(s,a)
+  $$
+  再由等式$\frac{\partial \pi_\theta(s,a)}{\partial \theta} = \pi_\theta(s,a)\nabla_\theta\log\pi_\theta(s,a)$ 可得
+  $$
+  \frac{\partial \rho}{\partial \theta} = \mathbb{E}_{\pi_\theta}[\nabla_\theta\log\pi_\theta(s,a)Q^\pi(s,a)]
+  $$
+  
+
+  因此，策略的参数更新公式为
+  $$
+  \theta = \theta +  \alpha\nabla_\theta\log\pi_\theta(s,a)Q^\pi(s,a)
+  $$
+  
+* A2C (Advantage Actor Critic)
+
+  在上述框架中，采用优势函数 $A_\pi(s,a) = Q_\pi(s,a)-V_\pi(s)$ 作为 Critic的价值函数，就得到A2C算法。从而策略的更新公式变为
+  $$
+  \theta = \theta +  \alpha\nabla_\theta\log\pi_\theta(s,a)A_\pi(s,a)
+  $$
+  
+
+  
+
+  ***A2C vs AC***:
+
+  当优势函数大于0 ，说明此该动作优于平均动作，反之则不如平均动作。这样可以更好的处理动作价值函数全正或者全负的情况。
+
+  相较于累计回报，优势函数的方差会更小。
+
+
+
+* A3C的改进和具体算法
+
+  在传统的A2C上，A3C采用了异步的方式，从而打破数据间的相关性，解决了AC算法难以收敛的问题：
+
+  ![](figures/7.jpg)
+
+  ​		下面是A3C的伪代码![](figures/6.jpg)
+
+### Model Design
 
 本小结将解释模型是如何设计的，整个模型如下图所示，共有七层。
 
@@ -236,62 +318,155 @@ $$
 整个模型forward过程为：
 
 ```python
-def forward(self, inputs):
-        inputs, (hx, cx) = inputs
-        x = F.elu(self.conv1.forward(inputs))
-        x = F.elu(self.conv2.forward(x))
-        x = F.elu(self.conv3.forward(x))
-        x = F.elu(self.conv4.forward(x))
-        # x.shape = 1, 32, 3, 3
-        x = x.view(-1, 32 * 3 * 3)
-        # x.shape = 1, 288
-        hx, cx = self.lstm.forward(x, (hx, cx))
-        x = hx
-        return self.critic_linear.forward(x), self.actor_linear.forward(x), (hx, cx)
+		def forward(self, inputs):
+		        inputs, (hx, cx) = inputs
+		        x = F.elu(self.conv1.forward(inputs))
+		        x = F.elu(self.conv2.forward(x))
+		        x = F.elu(self.conv3.forward(x))
+		        x = F.elu(self.conv4.forward(x))
+		        # x.shape = 1, 32, 3, 3
+		        x = x.view(-1, 32 * 3 * 3)
+		        # x.shape = 1, 288
+		        hx, cx = self.lstm.forward(x, (hx, cx))
+		        x = hx
+		        return self.critic_linear.forward(x), self.actor_linear.forward(x), (hx, cx)
 ```
 
-由于我们已经完成各层反向传播，所以对模型的反向传播直接为各层的组装：
+由于我们已经完成各层反向传播的计算，所以对模型的反向传播直接为各层的组装：
 
 ```python
-def backward(self, top_grad_value, top_grad_logit):
-        grad_inputs = []
-
-        grad_critic_linear = self.critic_linear.backward(top_grad_value)
-        grad_actor_liner = self.actor_linear.backward(top_grad_logit)
-
-        top_grad_h = []
-
-        for i in range(len(grad_critic_linear)):
-            top_grad_h.append(grad_critic_linear[i] + grad_actor_liner[i])
-
-        top_grad_c = [0] * len(grad_critic_linear)
-
-        top_grad_conv4, _, _ = self.lstm.backward(top_grad_h, top_grad_c)
-
-        top_grad_conv4 = [element.view(-1, 32, 3, 3) for element in top_grad_conv4]
-
-        top_grad_conv4 = grad_elu(top_grad_conv4, self.y4)
-        top_grad_conv3 = self.conv4.backward(top_grad_conv4)
-
-        top_grad_conv3 = grad_elu(top_grad_conv3, self.y3)
-        top_grad_conv2 = self.conv3.backward(top_grad_conv3)
-
-        top_grad_conv2 = grad_elu(top_grad_conv2, self.y2)
-        top_grad_conv1 = self.conv2.backward(top_grad_conv2)
-
-        top_grad_conv1 = grad_elu(top_grad_conv1, self.y1)
-        grad_inputs = self.conv1.backward(top_grad_conv1)
-
-        return grad_inputs
+		def backward(self, top_grad_value, top_grad_logit):
+		        grad_inputs = []
+		
+		        grad_critic_linear = self.critic_linear.backward(top_grad_value)
+		        grad_actor_liner = self.actor_linear.backward(top_grad_logit)
+		
+		        top_grad_h = []
+		
+		        for i in range(len(grad_critic_linear)):
+		            top_grad_h.append(grad_critic_linear[i] + grad_actor_liner[i])
+		
+		        top_grad_c = [0] * len(grad_critic_linear)
+		
+		        top_grad_conv4, _, _ = self.lstm.backward(top_grad_h, top_grad_c)
+		
+		        top_grad_conv4 = [element.view(-1, 32, 3, 3) for element in top_grad_conv4]
+		
+		        top_grad_conv4 = grad_elu(top_grad_conv4, self.y4)
+		        top_grad_conv3 = self.conv4.backward(top_grad_conv4)
+		
+		        top_grad_conv3 = grad_elu(top_grad_conv3, self.y3)
+		        top_grad_conv2 = self.conv3.backward(top_grad_conv3)
+		
+		        top_grad_conv2 = grad_elu(top_grad_conv2, self.y2)
+		        top_grad_conv1 = self.conv2.backward(top_grad_conv2)
+		
+		        top_grad_conv1 = grad_elu(top_grad_conv1, self.y1)
+		        grad_inputs = self.conv1.backward(top_grad_conv1)
+		
+		        return grad_inputs
 ```
 
-### inputs normalization
-
-### reward design
-### loss computing
+### Inputs Normalization
 
 
-# Reference
+
+### Reward Design
+### Loss Compute
+
+$reward_i$ 为单步的reward；$v_i$为Critic得到的预估价值；$logprob_i$为选择的action的概率的对数（经过softmax和log处理）
+$$
+Loss = L_{value}+L_{policy}
+$$
+首先获得一个episode(n步)中每个state的预期Reward：
+$$
+R_k = \sum_{i=k}^n \gamma^{i-k} reward_i
+$$
+然后得到$L_{value}$：
+$$
+L_{value} = \alpha_{value} \frac{1}{2}\sum_{i=1}^{n}(R_i-v_i)^2
+$$
+接着计算单步优势函数：
+$$
+\Delta_i = reward_i + \gamma v_{i+1}-v_i
+$$
+和每个state的优势函数：
+$$
+gae_k = \sum_{i=1}^{n} (\lambda\gamma)^{k-i}\Delta_i
+$$
+最后得到$L_{policy}$（对应上文提到的参数更新公式）：
+$$
+L_{policy} = - \sum_{i=1}^{n}gae_i*logprob_i
+$$
+考虑到平衡action，避免过于集中，我们引入第i步policy的熵$Entropy_i$，最终得到
+$$
+L_{policy} = - \sum_{i=1}^{n}gae_i*logprob_i - \alpha_{entropy}\sum_{i=1}^{n}Entropy_i
+$$
+
+$$
+Loss = L_{value}+L_{policy} =\alpha_{value} \frac{1}{2}\sum_{i=1}^{n}(R_i-v_i)^2- \sum_{i=1}^{n}gae_i*logprob_i - \alpha_{entropy}\sum_{i=1}^{n}Entropy_i
+$$
+
+
+
+* Loss backward
+
+  以单步为例，最后求和即可
+
+  记$value$ 为$Critic$估计的value值，$logit$为$Actor$估计得到的policy
+
+  我们只需求得$\frac{\partial L}{\partial \mathbf{value}}$和$\frac{\partial L}{\partial \mathbf{logit}}$
+
+  事实上，这只涉及最基础的求导，具体的公式的推导可以参考[这里P41](http://staff.ustc.edu.cn/~jwangx/classes/210709/notes/Lec09.pdf)
+
+  首先我们有
+  $$
+  p_i =\frac{e^{logit_i}}{\sum_{k}e^{logit_k}}
+  $$
+  
+  $$
+  logprob = log(p_i)
+  $$
+  所以
+  $$
+  \frac{\partial logprob}{\partial logit_j} = \begin{cases}
+  1-p_i & i=j\\
+  -p_j& i\neq j
+  \end{cases}
+  $$
+  Entropy同理
+
+## Result
+
+![](figures/learning_curve_plot.png)
+
+## Reference
 
 https://medium.com/@aidangomez/let-s-do-this-f9b699de31d9
+
+[https://baike.baidu.com/item/卷积神经网络](https://baike.baidu.com/item/卷积神经网络)
+
+[https://pytorch.org/docs/stable/nn.functional.html](https://pytorch.org/docs/stable/nn.functional.html)
+
+[http://staff.ustc.edu.cn/~jwangx/classes/210709/notes/Lec10.pdf](http://staff.ustc.edu.cn/~jwangx/classes/210709/notes/Lec10.pdf)
+
+[https://www.jianshu.com/p/f743bd9041b3](https://www.jianshu.com/p/f743bd9041b3)
+
+[https://www.zhihu.com/question/48279880](https://www.zhihu.com/question/48279880)
+
+
+
+[https://homes.cs.washington.edu/~todorov/courses/amath579/reading/PolicyGradient.pdf](https://homes.cs.washington.edu/~todorov/courses/amath579/reading/PolicyGradient.pdf)
+
+[https://zhuanlan.zhihu.com/p/62100741](https://zhuanlan.zhihu.com/p/62100741)
+
+[https://www.cnblogs.com/pinard/p/10272023.html](https://www.cnblogs.com/pinard/p/10272023.html)
+
+[https://www.cnblogs.com/wangxiaocvpr/p/8110120.html](https://www.cnblogs.com/wangxiaocvpr/p/8110120.html)
+
+
+
+[http://staff.ustc.edu.cn/~jwangx/classes/210709/notes/Lec09.pdf](http://staff.ustc.edu.cn/~jwangx/classes/210709/notes/Lec09.pdf)
+
+[https://hackernoon.com/intuitive-rl-intro-to-advantage-actor-critic-a2c-4ff545978752](https://hackernoon.com/intuitive-rl-intro-to-advantage-actor-critic-a2c-4ff545978752)
 
