@@ -1,5 +1,5 @@
 # RL-A3C-Riverraid-v0
-A simple implementation of A3C for atari game `Riverraid-v0` from scratch. 
+A simple implementation of A3C for atari game `Riverraid-v0` from scratch. Joint work with [@xmty777](https://github.com/xmty777)
 * Only use torch data structure and some commonly used torch functions.
 * Implement my own Conv2d, Linear and LSTM layers, including forward and backward.
 ## How to train
